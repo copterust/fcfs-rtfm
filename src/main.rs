@@ -23,19 +23,21 @@ const APP: () = {
 
         device.RCC.ahbenr.modify(|_, w| w.iopcen().set_bit());
         device.GPIOC.moder.modify(
-            |_, w| w.moder12().input()
+            |_, w| w.moder13().input()
         );
         device.GPIOC.pupdr.modify(|_, w| unsafe {
-            w.pupdr12().bits(0b01)
+            w.pupdr13().bits(0b01)
         });
+
+        device.RCC.apb2enr.write(|w| w.syscfgen().enabled());
 
         device.SYSCFG.exticr4.modify(|_, w| unsafe {
-            w.exti12().bits(0b010)
+            w.exti13().bits(0b010)
         });
 
-        device.EXTI.imr1.modify(|_, w| w.mr12().set_bit());
-        device.EXTI.emr1.modify(|_, w| w.mr12().set_bit());
-        device.EXTI.rtsr1.modify(|_, w| w.tr12().set_bit());
+        device.EXTI.imr1.modify(|_, w| w.mr13().set_bit());
+        device.EXTI.emr1.modify(|_, w| w.mr13().set_bit());
+        device.EXTI.rtsr1.modify(|_, w| w.tr13().set_bit());
 
         DEVICE = device;
     }
