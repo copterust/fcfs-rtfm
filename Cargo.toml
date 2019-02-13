@@ -19,7 +19,8 @@ panic-halt = "0.2.0"
 panic-semihosting = "*"
 
 [dependencies.hal]
-version = "0.11.0"
+# version = "0.11.0"
+git = "https://github.com/copterust/alt-stm32f30x-hal"
 package = "alt-stm32f30x-hal"
 features = ["rt"]
 
