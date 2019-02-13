@@ -1,9 +1,11 @@
 #![deny(warnings)]
 #![no_main]
 #![no_std]
+#![allow(non_snake_case)]
 
 extern crate panic_semihosting;
 use rtfm::app;
+use cortex_m_semihosting::hprintln;
 
 #[app(device = stm32f30x)]
 const APP: () = {
@@ -33,6 +35,7 @@ const APP: () = {
         device.EXTI.imr1.modify(|_, w| w.mr13().set_bit());
         device.EXTI.emr1.modify(|_, w| w.mr13().set_bit());
         device.EXTI.rtsr1.modify(|_, w| w.tr13().set_bit());
+        hprintln!("init!").unwrap();
         // Save device in resources for later use
         DEVICE = device;
     }
