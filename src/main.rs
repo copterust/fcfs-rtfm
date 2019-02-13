@@ -42,7 +42,6 @@ const APP: () = {
 
     #[interrupt(resources = [DEVICE])]
     fn EXTI15_10() {
-        // Turn on debug LED
-        resources.DEVICE.GPIOA.bsrr.write(|w| w.bs5().set_bit());
+        hprintln!("int15").unwrap();
     }
 };
