@@ -18,6 +18,11 @@ stm32f30x = {version = "0.8.0", features = ["rt"]}
 panic-halt = "0.2.0"
 panic-semihosting = "*"
 
+[dependencies.hal]
+version = "0.11.0"
+package = "alt-stm32f30x-hal"
+features = ["rt"]
+
 [profile]
 [profile.release]
 codegen-units = 1

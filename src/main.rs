@@ -4,8 +4,8 @@
 #![allow(non_snake_case)]
 
 extern crate panic_semihosting;
-use rtfm::app;
 use cortex_m_semihosting::hprintln;
+use rtfm::app;
 
 #[app(device = stm32f30x)]
 const APP: () = {
