@@ -38,6 +38,8 @@ const APP: () = {
 
     #[interrupt(resources = [DEVICE])]
     fn EXTI0() {
+        let d = resources.DEVICE;
+        d.EXTI.pr1.modify(|_, w| w.pr0().set_bit());
         hprintln!("EXTI0").unwrap();
     }
 };
