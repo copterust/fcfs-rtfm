@@ -19,4 +19,11 @@ load: build
 clean:
 	cargo -v clean
 
+bloat:
+	cargo -v bloat $(RELEASE_FLAG) --crates
+
+details:
+	cargo -v bloat $(RELEASE_FLAG) -n 100
+
+
 .PHONY: build

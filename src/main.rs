@@ -1,17 +1,18 @@
-#![deny(warnings)]
+#![allow(warnings)]
 #![no_main]
 #![no_std]
 #![allow(non_snake_case)]
 
 #[allow(unused)]
-use panic_semihosting;
+use panic_abort;
 
-use cortex_m_semihosting::hprintln;
+use cortex_m_semihosting::{hprintln, hprint};
 use rtfm::app;
+use ryu;
 
 // use ehal;
 use hal::delay::Delay;
-use hal::gpio::PullUp;
+use hal::gpio::PullDown;
 use hal::gpio::{self, AltFn, AF5};
 use hal::gpio::{HighSpeed, LowSpeed, Output, PullNone, PushPull};
 use hal::prelude::*;
@@ -31,23 +32,44 @@ type SPI = Spi<
 >;
 type MPU9250 = mpu9250::Mpu9250<SPI, gpio::PB0<PullNone, Output<PushPull, LowSpeed>>, mpu9250::Imu>;
 
+macro_rules! hwrite_floats {
+    (
+        $prelude:expr,
+        $($exprs:expr),* $(,)*
+    ) => {
+        {
+            hprint!($prelude).unwrap();
+            hprint!(":").unwrap();
+            $(
+                let mut b = ryu::Buffer::new();
+                let s = b.format($exprs);
+                hprint!(s).unwrap();
+                hprint!(";");
+            )+
+                hprint!("\n");
+        }
+    }
+}
+
+
 #[app(device = stm32f30x)]
 const APP: () = {
     static mut EXTI: stm32f30x::EXTI = ();
     static mut MPU: MPU9250 = ();
+    //    static mut D: hal::delay::Delay = ();
 
     #[init]
     fn init() -> init::LateResources {
+        // interrupt pin 3 purple -- a0
         let device: stm32f30x::Peripherals = device;
 
         let mut rcc = device.RCC.constrain();
         let gpioa = device.GPIOA.split(&mut rcc.ahb);
         let gpiob = device.GPIOB.split(&mut rcc.ahb);
-        let _pa5 = gpioa.pa5.input().pull_type(PullUp);
-        // this sohuld be properly done via HAL
+        let _pa0 = gpioa.pa0.input().pull_type(PullDown);
+
+        // this should be properly done via HAL
         rcc.apb2.enr().write(|w| w.syscfgen().enabled());
-        // Use PA0 as INT source
-        // Set PA0 as EXTI0
         device
             .SYSCFG
             .exticr1
@@ -81,25 +103,30 @@ const APP: () = {
         let mut delay = Delay::new(core.SYST, clocks);
         hprintln!("delay ok").unwrap();
         // MPU
-        let mpu9250 = Mpu9250::imu_default(spi, ncs, &mut delay).expect("no");
+        let mut mpu9250 = Mpu9250::imu_default(spi, ncs, &mut delay).unwrap();
         hprintln!("mpu ok").unwrap();
+
+        mpu9250.enable_interrupt(mpu9250::InterruptEnable::RAW_RDY_EN).unwrap();
 
         // Save device in resources for later use
         init::LateResources {
             EXTI: device.EXTI,
             MPU: mpu9250,
+            //             D: delay
         }
     }
 
     #[interrupt(resources = [EXTI, MPU])]
     fn EXTI0() {
+        hprintln!("EXTI0").unwrap();
         let exti = resources.EXTI;
         let mpu = resources.MPU;
-        exti.pr1.modify(|_, w| w.pr0().set_bit());
-        match mpu.all() {
-            Ok(a) => hprintln!("all: {:?}", a).unwrap(),
-            Err(e) => hprintln!("no re: {:?}", e).unwrap(),
+        match mpu.accel() {
+            Ok(a) => {
+                hwrite_floats!("accel:", a.x, a.y, a.z);
+            }
+            Err(_e) => hprintln!("err").unwrap(),
         };
-        hprintln!("EXTI0").unwrap();
+        exti.pr1.modify(|_, w| w.pr0().set_bit());
     }
 };
