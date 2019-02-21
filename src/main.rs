@@ -1,40 +1,75 @@
-#![deny(warnings)]
+#![allow(warnings)]
 #![no_main]
 #![no_std]
 #![allow(non_snake_case)]
 
 #[allow(unused)]
-use panic_semihosting;
+use panic_abort;
 
-use cortex_m_semihosting::hprintln;
+use cortex_m_semihosting::{hprintln, hprint};
 use rtfm::app;
+use ryu;
 
 // use ehal;
-// use hal::delay::Delay;
-// use hal::gpio::{self, AltFn, AF5, AF7};
-// use hal::gpio::{LowSpeed, MediumSpeed, Output, PullNone, PullUp, PushPull};
-use hal::gpio::PullUp;
+use hal::delay::Delay;
+use hal::gpio::PullDown;
+use hal::gpio::{self, AltFn, AF5};
+use hal::gpio::{HighSpeed, LowSpeed, Output, PullNone, PushPull};
 use hal::prelude::*;
+use mpu9250::Mpu9250;
 // use hal::serial::{self, Rx, Serial, Tx};
-// use hal::spi::Spi;
+use hal::spi::Spi;
 // use hal::stm32f30x;
 // use hal::timer;
+
+type SPI = Spi<
+    hal::stm32f30x::SPI1,
+    (
+        gpio::PB3<PullNone, AltFn<AF5, PushPull, HighSpeed>>,
+        gpio::PB4<PullNone, AltFn<AF5, PushPull, HighSpeed>>,
+        gpio::PB5<PullNone, AltFn<AF5, PushPull, HighSpeed>>,
+    ),
+>;
+type MPU9250 = mpu9250::Mpu9250<SPI, gpio::PB0<PullNone, Output<PushPull, LowSpeed>>, mpu9250::Imu>;
+
+macro_rules! hwrite_floats {
+    (
+        $prelude:expr,
+        $($exprs:expr),* $(,)*
+    ) => {
+        {
+            hprint!($prelude).unwrap();
+            hprint!(":").unwrap();
+            $(
+                let mut b = ryu::Buffer::new();
+                let s = b.format($exprs);
+                hprint!(s).unwrap();
+                hprint!(";");
+            )+
+                hprint!("\n");
+        }
+    }
+}
+
 
 #[app(device = stm32f30x)]
 const APP: () = {
     static mut EXTI: stm32f30x::EXTI = ();
+    static mut MPU: MPU9250 = ();
+    //    static mut D: hal::delay::Delay = ();
 
     #[init]
-    fn init() {
+    fn init() -> init::LateResources {
+        // interrupt pin 3 purple -- a0
         let device: stm32f30x::Peripherals = device;
 
         let mut rcc = device.RCC.constrain();
         let gpioa = device.GPIOA.split(&mut rcc.ahb);
-        let _pa5 = gpioa.pa5.input().pull_type(PullUp);
-        // this sohuld be properly done via HAL
+        let gpiob = device.GPIOB.split(&mut rcc.ahb);
+        let _pa0 = gpioa.pa0.input().pull_type(PullDown);
+
+        // this should be properly done via HAL
         rcc.apb2.enr().write(|w| w.syscfgen().enabled());
-        // Use PA0 as INT source
-        // Set PA0 as EXTI0
         device
             .SYSCFG
             .exticr1
@@ -46,14 +81,52 @@ const APP: () = {
         // ^^ this should be done via HAL
 
         hprintln!("init!").unwrap();
+        let mut flash = device.FLASH.constrain();
+        let clocks = rcc
+            .cfgr
+            .sysclk(64.mhz())
+            .pclk1(32.mhz())
+            .pclk2(32.mhz())
+            .freeze(&mut flash.acr);
+        // SPI1
+        let ncs = gpiob.pb0.output().push_pull();
+        let scl_sck = gpiob.pb3;
+        let sda_sdi_mosi = gpiob.pb5;
+        let ad0_sdo_miso = gpiob.pb4;
+        let spi = device.SPI1.spi(
+            (scl_sck, ad0_sdo_miso, sda_sdi_mosi),
+            mpu9250::MODE,
+            1.mhz(),
+            clocks,
+        );
+        hprintln!("spi ok").unwrap();
+        let mut delay = Delay::new(core.SYST, clocks);
+        hprintln!("delay ok").unwrap();
+        // MPU
+        let mut mpu9250 = Mpu9250::imu_default(spi, ncs, &mut delay).unwrap();
+        hprintln!("mpu ok").unwrap();
+
+        mpu9250.enable_interrupt(mpu9250::InterruptEnable::RAW_RDY_EN).unwrap();
+
         // Save device in resources for later use
-        EXTI = device.EXTI;
+        init::LateResources {
+            EXTI: device.EXTI,
+            MPU: mpu9250,
+            //             D: delay
+        }
     }
 
-    #[interrupt(resources = [EXTI])]
+    #[interrupt(resources = [EXTI, MPU])]
     fn EXTI0() {
-        let exti = resources.EXTI;
-        exti.pr1.modify(|_, w| w.pr0().set_bit());
         hprintln!("EXTI0").unwrap();
+        let exti = resources.EXTI;
+        let mpu = resources.MPU;
+        match mpu.accel() {
+            Ok(a) => {
+                hwrite_floats!("accel:", a.x, a.y, a.z);
+            }
+            Err(_e) => hprintln!("err").unwrap(),
+        };
+        exti.pr1.modify(|_, w| w.pr0().set_bit());
     }
 };

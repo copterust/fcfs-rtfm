@@ -1,5 +1,5 @@
 [package]
-authors = ["Alexander Zhuravlev <123368+bofh@users.noreply.github.com>"]
+authors = ["Roma Sokolov", "Alexander Zhuravlev <123368+bofh@users.noreply.github.com>"]
 edition = "2018"
 name = "fcfs-rtfm"
 readme = "README.md"
@@ -11,21 +11,28 @@ test = false
 
 [dependencies]
 cortex-m = "0.5.8"
-cortex-m-rt = "0.6.5"
-cortex-m-rtfm = "*"
+cortex-m-rt = "0.6.7"
+cortex-m-rtfm = "0.4.1"
 cortex-m-semihosting = "0.3.2"
-stm32f30x = {version = "0.8.0", features = ["rt"]}
-panic-halt = "0.2.0"
-panic-semihosting = "*"
+panic-abort = "0.3.1"
+stm32f30x = "0.8.0"
+ryu = "0.2"
+
+[dependencies.mpu9250]
+# version = "0.7.4"
+# path = "../mpu9250"
+git = "https://github.com/copterust/mpu9250"
 
 [dependencies.hal]
-# version = "0.11.0"
-git = "https://github.com/copterust/alt-stm32f30x-hal"
+version = "0.12.0"
 package = "alt-stm32f30x-hal"
 features = ["rt"]
 
 [profile]
 [profile.release]
+panic = "abort"
+opt-level = "z"
 codegen-units = 1
-debug = true
+debug = false
 lto = true
+incremental = false # nalgebra
