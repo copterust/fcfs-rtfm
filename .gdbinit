@@ -28,5 +28,4 @@ monitor arm semihosting enable
 
 load
 
-# start the process but immediately halt the processor
 cont

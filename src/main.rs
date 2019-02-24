@@ -6,7 +6,7 @@
 #[allow(unused)]
 use panic_abort;
 
-use cortex_m_semihosting::{hprintln, hprint};
+use cortex_m_semihosting::{hprint, hprintln};
 use rtfm::app;
 use ryu;
 
@@ -16,11 +16,8 @@ use hal::gpio::PullDown;
 use hal::gpio::{self, AltFn, AF5};
 use hal::gpio::{HighSpeed, LowSpeed, Output, PullNone, PushPull};
 use hal::prelude::*;
-use mpu9250::Mpu9250;
-// use hal::serial::{self, Rx, Serial, Tx};
 use hal::spi::Spi;
-// use hal::stm32f30x;
-// use hal::timer;
+use mpu9250::Mpu9250;
 
 type SPI = Spi<
     hal::stm32f30x::SPI1,
@@ -50,7 +47,6 @@ macro_rules! hwrite_floats {
         }
     }
 }
-
 
 #[app(device = stm32f30x)]
 const APP: () = {
@@ -106,13 +102,16 @@ const APP: () = {
         let mut mpu9250 = Mpu9250::imu_default(spi, ncs, &mut delay).unwrap();
         hprintln!("mpu ok").unwrap();
 
-        mpu9250.enable_interrupt(mpu9250::InterruptEnable::RAW_RDY_EN).unwrap();
+        mpu9250
+            .enable_interrupts(mpu9250::InterruptEnable::RAW_RDY_EN)
+            .unwrap();
+        hprintln!("enabled; ").unwrap();
+        hprintln!("now: {:?}", mpu9250.get_enabled_interrupts().unwrap());
 
         // Save device in resources for later use
         init::LateResources {
             EXTI: device.EXTI,
             MPU: mpu9250,
-            //             D: delay
         }
     }
 
@@ -121,12 +120,15 @@ const APP: () = {
         hprintln!("EXTI0").unwrap();
         let exti = resources.EXTI;
         let mpu = resources.MPU;
-        match mpu.accel() {
-            Ok(a) => {
-                hwrite_floats!("accel:", a.x, a.y, a.z);
+        match mpu.all() {
+            Ok(m) => {
+                let a = m.accel;
+                let g = m.gyro;
+                hwrite_floats!("m:", a.x, a.y, a.z, g.x, g.y, g.z, m.temp);
             }
             Err(_e) => hprintln!("err").unwrap(),
         };
+        // unpend?
         exti.pr1.modify(|_, w| w.pr0().set_bit());
     }
 };
