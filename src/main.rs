@@ -27,7 +27,8 @@ type SPI = Spi<
         gpio::PB5<PullNone, AltFn<AF5, PushPull, HighSpeed>>,
     ),
 >;
-type MPU9250 = mpu9250::Mpu9250<SPI, gpio::PB0<PullNone, Output<PushPull, LowSpeed>>, mpu9250::Imu>;
+type Dev = mpu9250::SpiDevice<SPI, gpio::PB0<PullNone, Output<PushPull, LowSpeed>>>;
+type MPU9250 = mpu9250::Mpu9250<Dev, mpu9250::Imu>;
 
 macro_rules! hwrite_floats {
     (
