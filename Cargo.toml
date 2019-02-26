@@ -33,6 +33,6 @@ features = ["rt"]
 panic = "abort"
 opt-level = "z"
 codegen-units = 1
-debug = false
+debug = true
 lto = true
 incremental = false # nalgebra
