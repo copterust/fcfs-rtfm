@@ -118,9 +118,12 @@ const APP: () = {
 
     #[interrupt(resources = [EXTI, MPU])]
     fn EXTI0() {
-        hprintln!("EXTI0").unwrap();
         let exti = resources.EXTI;
         let mpu = resources.MPU;
+        let status = mpu
+            .get_interrupt_status()
+            .unwrap_or(mpu9250::InterruptEnable::empty());
+        hprintln!("EXTI0: {:?}", status).unwrap();
         match mpu.all() {
             Ok(m) => {
                 let a = m.accel;
