@@ -7,10 +7,11 @@
 use panic_abort;
 
 use cortex_m_semihosting::{hprint, hprintln};
-use rtfm::app;
+use rtfm::{app, Instant};
 use ryu;
 
 // use ehal;
+use asm_delay::AsmDelay;
 use hal::delay::Delay;
 use hal::gpio::PullDown;
 use hal::gpio::{self, AltFn, AF5};
@@ -57,6 +58,7 @@ const APP: () = {
 
     #[init]
     fn init() -> init::LateResources {
+        let freq: hal::time::Hertz = 72.mhz().into();
         // interrupt pin 3 purple -- a0
         let device: stm32f30x::Peripherals = device;
 
@@ -81,7 +83,7 @@ const APP: () = {
         let mut flash = device.FLASH.constrain();
         let clocks = rcc
             .cfgr
-            .sysclk(64.mhz())
+            .sysclk(freq)
             .pclk1(32.mhz())
             .pclk2(32.mhz())
             .freeze(&mut flash.acr);
@@ -97,7 +99,7 @@ const APP: () = {
             clocks,
         );
         hprintln!("spi ok").unwrap();
-        let mut delay = Delay::new(core.SYST, clocks);
+        let mut delay = AsmDelay::new(freq.0);
         hprintln!("delay ok").unwrap();
         // MPU
         let mut mpu9250 = Mpu9250::imu_default(spi, ncs, &mut delay).unwrap();
@@ -123,7 +125,7 @@ const APP: () = {
         let status = mpu
             .get_interrupt_status()
             .unwrap_or(mpu9250::InterruptEnable::empty());
-        hprintln!("EXTI0: {:?}", status).unwrap();
+        hprintln!("EXTI0: {:?}; now: {:?}", status, Instant::now()).unwrap();
         match mpu.all() {
             Ok(m) => {
                 let a = m.accel;
