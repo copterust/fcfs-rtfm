@@ -17,7 +17,7 @@ cortex-m-semihosting = "0.3.2"
 panic-abort = "0.3.1"
 stm32f30x = "0.8.0"
 ryu = "0.2"
-asm-delay = "0.3.1"
+asm-delay = "0.4.0"
 
 [dependencies.mpu9250]
 version = "0.9.3"
@@ -25,7 +25,7 @@ version = "0.9.3"
 # git = "https://github.com/copterust/mpu9250"
 
 [dependencies.hal]
-version = "0.13.0"
+version = "0.14.0"
 # path = "../alt-stm32f30x-hal"
 package = "alt-stm32f30x-hal"
 features = ["rt"]

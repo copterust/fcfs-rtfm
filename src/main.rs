@@ -58,7 +58,7 @@ const APP: () = {
 
     #[init]
     fn init() -> init::LateResources {
-        let freq: hal::time::Hertz = 72.mhz().into();
+        let freq = 72.mhz();
         // interrupt pin 3 purple -- a0
         let device: stm32f30x::Peripherals = device;
 
@@ -99,7 +99,7 @@ const APP: () = {
             clocks,
         );
         hprintln!("spi ok").unwrap();
-        let mut delay = AsmDelay::new(freq.0);
+        let mut delay = AsmDelay::new(freq);
         hprintln!("delay ok").unwrap();
         // MPU
         let mut mpu9250 = Mpu9250::imu_default(spi, ncs, &mut delay).unwrap();
