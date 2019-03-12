@@ -54,7 +54,6 @@ macro_rules! hwrite_floats {
 const APP: () = {
     static mut EXTI: stm32f30x::EXTI = ();
     static mut MPU: MPU9250 = ();
-    //    static mut D: hal::delay::Delay = ();
 
     #[init]
     fn init() -> init::LateResources {
