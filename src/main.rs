@@ -2,9 +2,12 @@
 #![no_main]
 #![no_std]
 #![allow(non_snake_case)]
+#![feature(impl_trait_in_bindings)]
 
 #[allow(unused)]
 use panic_abort;
+
+mod chrono;
 
 use bitrate;
 use cortex_m_semihosting::{hprint, hprintln};
@@ -55,8 +58,7 @@ macro_rules! hwrite_floats {
 const APP: () = {
     static mut EXTI: stm32f30x::EXTI = ();
     static mut MPU: MPU9250 = ();
-    static mut I: Instant = ();
-    static mut CC: CyclesToTime = ();
+    static mut CC: impl chrono::Chrono = ();
 
     #[init]
     fn init() -> init::LateResources {
@@ -117,27 +119,20 @@ const APP: () = {
         init::LateResources {
             EXTI: device.EXTI,
             MPU: mpu9250,
-            I: Instant::now(),
-            CC: CyclesToTime::new(freq),
+            CC: chrono::RtfmClock::new(CyclesToTime::new(freq)),
         }
     }
 
-    #[interrupt(resources = [EXTI, MPU, I, CC])]
+    #[interrupt(resources = [EXTI, MPU, CC])]
     fn EXTI0() {
         let exti = resources.EXTI;
         let mpu = resources.MPU;
-        let last = *resources.I;
-        let now = Instant::now();
-        let duration = now.duration_since(last);
-        *resources.I = now;
-
+        let ms = resources.CC.split_time_ms();
         let status = mpu
             .get_interrupt_status()
             .unwrap_or(mpu9250::InterruptEnable::empty());
-        let cycles = duration.as_cycles();
-        let ms = resources.CC.to_ms(cycles);
 
-        hprintln!("EXTI0: {:?}; cycles: {:?}", status, cycles).unwrap();
+        hprintln!("EXTI0: {:?}", status).unwrap();
         hwrite_floats!("durms:", ms);
         match mpu.all() {
             Ok(m) => {
