@@ -17,7 +17,8 @@ cortex-m-semihosting = "0.3.2"
 panic-abort = "0.3.1"
 stm32f30x = "0.8.0"
 ryu = "0.2"
-asm-delay = "0.4.0"
+asm-delay = "0.5.1"
+bitrate = "*" # whatever comes with asm-delay
 
 [dependencies.mpu9250]
 version = "0.9.5"

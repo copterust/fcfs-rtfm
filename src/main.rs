@@ -6,12 +6,13 @@
 #[allow(unused)]
 use panic_abort;
 
+use bitrate;
 use cortex_m_semihosting::{hprint, hprintln};
 use rtfm::{app, Instant};
 use ryu;
 
 // use ehal;
-use asm_delay::AsmDelay;
+use asm_delay::{AsmDelay, CyclesToTime};
 use hal::delay::Delay;
 use hal::gpio::PullDown;
 use hal::gpio::{self, AltFn, AF5};
@@ -54,6 +55,8 @@ macro_rules! hwrite_floats {
 const APP: () = {
     static mut EXTI: stm32f30x::EXTI = ();
     static mut MPU: MPU9250 = ();
+    static mut I: Instant = ();
+    static mut CC: CyclesToTime = ();
 
     #[init]
     fn init() -> init::LateResources {
@@ -114,17 +117,28 @@ const APP: () = {
         init::LateResources {
             EXTI: device.EXTI,
             MPU: mpu9250,
+            I: Instant::now(),
+            CC: CyclesToTime::new(freq),
         }
     }
 
-    #[interrupt(resources = [EXTI, MPU])]
+    #[interrupt(resources = [EXTI, MPU, I, CC])]
     fn EXTI0() {
         let exti = resources.EXTI;
         let mpu = resources.MPU;
+        let last = *resources.I;
+        let now = Instant::now();
+        let duration = now.duration_since(last);
+        *resources.I = now;
+
         let status = mpu
             .get_interrupt_status()
             .unwrap_or(mpu9250::InterruptEnable::empty());
-        hprintln!("EXTI0: {:?}; now: {:?}", status, Instant::now()).unwrap();
+        let cycles = duration.as_cycles();
+        let ms = resources.CC.to_ms(cycles);
+
+        hprintln!("EXTI0: {:?}; cycles: {:?}", status, cycles).unwrap();
+        hwrite_floats!("durms:", ms);
         match mpu.all() {
             Ok(m) => {
                 let a = m.accel;
