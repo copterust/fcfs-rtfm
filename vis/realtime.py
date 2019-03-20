@@ -1,24 +1,34 @@
 import serial
 import struct
-import visdom
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 port = serial.Serial("/dev/ttyUSB0", baudrate=460800, timeout=3.0)
-viz = visdom.Visdom(port=8097, server="http://localhost")
-viz.line(X=np.array([0]),
-         Y=np.array([0]),
-         win="Yaw",
-         name="Yaw",
-         update='append')
-x = 0
-while True:
-    #rcv = port.read(4)
-    #print("Got bytes: {}".format(rcv))
-    #value = struct.unpack('d', rcv)[0]
-    #print("Value is: {}".format(value))
-    x = x + 1
-    viz.line(X=np.array([x]),
-             Y=np.random.rand(1),
-             win="Yaw",
-             name="Yaw",
-             update='append')
+
+fig = plt.figure()
+ax = fig.add_subplot(1, 1, 1)
+xs = []
+ys = []
+
+def animate(i, xs, ys):
+    rcv = port.read(4)
+    value = struct.unpack('f', rcv)[0]
+    value = np.degrees(value)
+
+    xs.append(i)
+    ys.append(value)
+
+    xs = xs[-20:]
+    ys = ys[-20:]
+
+    ax.clear()
+    ax.plot(xs, ys)
+
+    plt.subplots_adjust(bottom=0.30)
+    plt.title('Pitch Over Time')
+    plt.ylabel('Pitch (deg)')
+
+
+ani = animation.FuncAnimation(fig, animate, fargs=(xs, ys), interval=0.2)
+plt.show()
