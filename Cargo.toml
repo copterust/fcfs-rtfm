@@ -15,15 +15,25 @@ cortex-m-rt = "0.6.7"
 cortex-m-rtfm = {version = "0.4.2", features = ["nightly", "timer-queue"]}
 cortex-m-semihosting = "0.3.2"
 panic-abort = "0.3.1"
-stm32f30x = "0.8.0"
+stm32f30x = "*"
 ryu = "0.2"
 asm-delay = "0.5.1"
-bitrate = "*" # whatever comes with asm-delay
+dcmimu = "0.2.1"
+libm = "0.1.2"
+
+[dependencies.nalgebra]
+default-features = false
+version = "0.16.4"
 
 [dependencies.mpu9250]
 version = "0.9.5"
 # path = "../mpu9250"
 # git = "https://github.com/copterust/mpu9250"
+
+[dependencies.ehal]
+features = ["unproven"]
+version = "0.2.2"
+package = "embedded-hal"
 
 [dependencies.hal]
 version = "0.14.0"
