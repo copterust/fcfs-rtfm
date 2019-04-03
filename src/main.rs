@@ -20,9 +20,9 @@ use asm_delay::{AsmDelay, CyclesToTime};
 use core::fmt::Write;
 use hal::delay::Delay;
 use hal::dma::{dma1, CircBuffer};
-use hal::gpio::PullDown;
 use hal::gpio::{self, AltFn, AF5};
 use hal::gpio::{HighSpeed, LowSpeed, Output, PullNone, PushPull};
+use hal::gpio::{PullDown, PullUp};
 use hal::prelude::*;
 use hal::serial::Tx;
 use hal::spi::Spi;
@@ -66,6 +66,8 @@ const APP: () = {
     static mut AHRS: ahrs::AHRS<Dev, chrono::T> = ();
     static mut LOG: logging::T = ();
     static mut TX: Tx<USART> = ();
+    static mut DEBUG_PIN: hal::gpio::PA1<PullDown,
+                                           Output<PushPull, HighSpeed>> = ();
 
     #[init]
     fn init() -> init::LateResources {
@@ -77,6 +79,8 @@ const APP: () = {
         let gpioa = device.GPIOA.split(&mut rcc.ahb);
         let gpiob = device.GPIOB.split(&mut rcc.ahb);
         let _pa0 = gpioa.pa0.input().pull_type(PullDown);
+        let pa1 =
+            gpioa.pa1.output().output_speed(HighSpeed).pull_type(PullDown);
 
         // this should be properly done via HAL or rtfm vv
         rcc.apb2.enr().write(|w| w.syscfgen().enabled());
@@ -141,15 +145,20 @@ const APP: () = {
 
         ahrs.setup_time();
         writeln!(log, "ready").unwrap();
-        init::LateResources { EXTI: device.EXTI, AHRS: ahrs, TX: tx, LOG: log }
+        init::LateResources { EXTI: device.EXTI,
+                              AHRS: ahrs,
+                              TX: tx,
+                              LOG: log,
+                              DEBUG_PIN: pa1 }
     }
 
-    #[interrupt(binds=EXTI0, resources = [EXTI, AHRS, TX, LOG])]
+    #[interrupt(binds=EXTI0, resources = [EXTI, AHRS, TX, LOG, DEBUG_PIN])]
     fn handle_mpu() {
+        resources.DEBUG_PIN.set_high();
         let exti = resources.EXTI;
         let mut ahrs = resources.AHRS;
         let mut tx = resources.TX;
-        let log = resources.LOG;
+        let mut log = resources.LOG;
         match ahrs.estimate() {
             Ok((dcm, _gyro, _dt_s)) => {
                 let pitch = dcm.pitch;
@@ -159,5 +168,6 @@ const APP: () = {
         };
 
         exti.pr1.modify(|_, w| w.pr0().set_bit());
+        resources.DEBUG_PIN.set_low();
     }
 };
