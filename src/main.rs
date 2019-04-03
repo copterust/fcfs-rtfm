@@ -161,8 +161,8 @@ const APP: () = {
         let mut log = resources.LOG;
         match ahrs.estimate() {
             Ok((dcm, _gyro, _dt_s)) => {
-                let _pitch = dcm.pitch;
-                //writefloats!(tx, "p:", pitch);
+                let pitch = dcm.pitch;
+                writefloats!(tx, "p:", pitch);
             },
             Err(_e) => writeln!(log, "err").unwrap(),
         };
