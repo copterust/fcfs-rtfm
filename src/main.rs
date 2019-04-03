@@ -26,7 +26,7 @@ use hal::gpio::{PullDown, PullUp};
 use hal::prelude::*;
 use hal::serial::Tx;
 use hal::spi::Spi;
-use mpu9250::Mpu9250;
+use mpu9250::{Mpu9250, MpuConfig};
 use nb::block;
 use rtfm::{app, Instant};
 use ryu;
@@ -48,14 +48,13 @@ macro_rules! writefloats {
     ) => {
         {
             $w.write_str($prelude).unwrap();
-            $w.write_char(':').unwrap();
             $(
                 let mut b = ryu::Buffer::new();
                 let s = b.format($exprs);
                 $w.write_str(s).unwrap();
                 $w.write_char(';').unwrap();
             )+
-                $w.write_char('\n').unwrap();
+            $w.write_char('\n').unwrap();
         }
     }
 }
@@ -91,7 +90,7 @@ const APP: () = {
         device.EXTI.rtsr1.modify(|_, w| w.tr0().set_bit());
         // ^^ this should be done via HAL
 
-        let mut log = logging::semihosting().unwrap();
+        let mut log = logging::create().unwrap();
         writeln!(log, "init!").unwrap();
         let mut flash = device.FLASH.constrain();
         let clocks = rcc.cfgr
@@ -112,11 +111,12 @@ const APP: () = {
         let mut delay = AsmDelay::new(freq);
         writeln!(log, "delay ok").unwrap();
         // MPU
+        let gyro_rate = mpu9250::GyroTempDataRate::DlpfConf(mpu9250::Dlpf::_2);
         let mut mpu9250 =
             Mpu9250::imu_with_reinit(spi,
                                      ncs,
                                      &mut delay,
-                                     &mut mpu9250::MpuConfig::imu().gyro_temp_data_rate(mpu9250::GyroTempDataRate::DlpfConf(mpu9250::Dlpf::_2)),
+                                     &mut MpuConfig::imu().gyro_temp_data_rate(gyro_rate),
                                      |spi, ncs| {
                                          let (dev_spi, (scl, miso, mosi)) =
                                              spi.free();
@@ -145,6 +145,7 @@ const APP: () = {
 
         ahrs.setup_time();
         writeln!(log, "ready").unwrap();
+
         init::LateResources { EXTI: device.EXTI,
                               AHRS: ahrs,
                               TX: tx,
@@ -162,7 +163,15 @@ const APP: () = {
         match ahrs.estimate() {
             Ok((dcm, _gyro, _dt_s)) => {
                 let pitch = dcm.pitch;
-                writefloats!(tx, "p:", pitch);
+                let pitch_bits = pitch.to_bits();
+                let bytes: [u8; 4] =
+                    unsafe { core::mem::transmute(pitch_bits) };
+                for byte in bytes.iter() {
+                    nb::block!(tx.write(*byte));
+                }
+                nb::block!(tx.write(0));
+                // writeln!(log, "P: {:?}", bytes).unwrap();
+                // writefloats!(tx, ":", pitch);
             },
             Err(_e) => writeln!(log, "err").unwrap(),
         };

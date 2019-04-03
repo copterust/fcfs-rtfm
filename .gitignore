@@ -4,3 +4,4 @@
 .gdb_history
 Cargo.lock
 target/
+env/

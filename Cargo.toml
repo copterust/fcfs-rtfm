@@ -50,3 +50,8 @@ codegen-units = 1
 debug = true
 lto = true
 incremental = false # nalgebra
+
+[features]
+default = []
+semihosting = []
+dummy = []

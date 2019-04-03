@@ -7,6 +7,9 @@ target :=
 TARGET := $(if $(target),"$(target)",thumbv7em-none-eabihf)
 TARGET_PATH := ./target/$(TARGET)/$(MODE)
 BIN := $(TARGET_PATH)/$(NAME)
+fea :=
+log := semihosting
+FEATURES := "--features=$(log),$(fea)"
 
 $(BIN): build
 
