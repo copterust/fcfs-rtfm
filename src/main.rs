@@ -14,14 +14,12 @@ use panic_abort;
 
 mod ahrs;
 mod chrono;
+mod logging;
 
-use cortex_m_semihosting::{hprint, hprintln};
-use rtfm::{app, Instant};
-use ryu;
-
-// use ehal;
 use asm_delay::{AsmDelay, CyclesToTime};
+use core::fmt::Write;
 use hal::delay::Delay;
+use hal::dma::{dma1, CircBuffer};
 use hal::gpio::PullDown;
 use hal::gpio::{self, AltFn, AF5};
 use hal::gpio::{HighSpeed, LowSpeed, Output, PullNone, PushPull};
@@ -29,6 +27,9 @@ use hal::prelude::*;
 use hal::serial::Tx;
 use hal::spi::Spi;
 use mpu9250::Mpu9250;
+use nb::block;
+use rtfm::{app, Instant};
+use ryu;
 
 type SPI = Spi<hal::stm32f30x::SPI1,
                (gpio::PB3<PullNone, AltFn<AF5, PushPull, HighSpeed>>,
@@ -39,29 +40,31 @@ type Dev =
 type MPU9250 = mpu9250::Mpu9250<Dev, mpu9250::Imu>;
 type USART = stm32f30x::USART2;
 
-macro_rules! hwrite_floats {
+macro_rules! writefloats {
     (
+        $w:expr,
         $prelude:expr,
         $($exprs:expr),* $(,)*
     ) => {
         {
-            hprint!($prelude).unwrap();
-            hprint!(":").unwrap();
+            $w.write_str($prelude).unwrap();
+            $w.write_char(':').unwrap();
             $(
                 let mut b = ryu::Buffer::new();
                 let s = b.format($exprs);
-                hprint!(s).unwrap();
-                hprint!(";");
+                $w.write_str(s).unwrap();
+                $w.write_char(';').unwrap();
             )+
-                hprint!("\n");
+                $w.write_char('\n').unwrap();
         }
     }
 }
 
 #[app(device = stm32f30x)]
 const APP: () = {
-    static mut EXTI: stm32f30x::EXTI = ();
+    static EXTI: stm32f30x::EXTI = ();
     static mut AHRS: ahrs::AHRS<Dev, chrono::T> = ();
+    static mut LOG: logging::T = ();
     static mut TX: Tx<USART> = ();
 
     #[init]
@@ -75,7 +78,7 @@ const APP: () = {
         let gpiob = device.GPIOB.split(&mut rcc.ahb);
         let _pa0 = gpioa.pa0.input().pull_type(PullDown);
 
-        // this should be properly done via HAL vv
+        // this should be properly done via HAL or rtfm vv
         rcc.apb2.enr().write(|w| w.syscfgen().enabled());
         device.SYSCFG.exticr1.modify(|_, w| unsafe { w.exti0().bits(0b000) });
         // Enable external interrupt on rise
@@ -84,7 +87,8 @@ const APP: () = {
         device.EXTI.rtsr1.modify(|_, w| w.tr0().set_bit());
         // ^^ this should be done via HAL
 
-        hprintln!("init!").unwrap();
+        let mut log = logging::semihosting().unwrap();
+        writeln!(log, "init!").unwrap();
         let mut flash = device.FLASH.constrain();
         let clocks = rcc.cfgr
                         .sysclk(freq)
@@ -100,9 +104,9 @@ const APP: () = {
                                   mpu9250::MODE,
                                   1.mhz(),
                                   clocks);
-        hprintln!("spi ok").unwrap();
+        writeln!(log, "spi ok").unwrap();
         let mut delay = AsmDelay::new(freq);
-        hprintln!("delay ok").unwrap();
+        writeln!(log, "delay ok").unwrap();
         // MPU
         let mut mpu9250 =
             Mpu9250::imu_with_reinit(spi,
@@ -119,16 +123,16 @@ const APP: () = {
                                                          clocks);
                                          Some((new_spi, ncs))
                                      }).unwrap();
-        hprintln!("mpu ok").unwrap();
+        writeln!(log, "mpu ok").unwrap();
 
         mpu9250.enable_interrupts(mpu9250::InterruptEnable::RAW_RDY_EN)
                .unwrap();
-        hprintln!("enabled; ").unwrap();
-        hprintln!("now: {:?}", mpu9250.get_enabled_interrupts().unwrap());
+        writeln!(log, "enabled; ").unwrap();
+        writeln!(log, "now: {:?}", mpu9250.get_enabled_interrupts().unwrap());
         let mut ahrs = ahrs::AHRS::create_calibrated(mpu9250,
-                                                   &mut delay,
+                                                     &mut delay,
                                                      chrono::rtfm_stopwatch(freq)).unwrap();
-        hprintln!("ahrs ok").unwrap();
+        writeln!(log, "ahrs ok").unwrap();
         let mut usart2 =
             device.USART2.serial((gpioa.pa2, gpioa.pa3),
                                  hal::time::Bps(460800),
@@ -136,27 +140,24 @@ const APP: () = {
         let (tx, _rx) = usart2.split();
 
         ahrs.setup_time();
-        init::LateResources { EXTI: device.EXTI, AHRS: ahrs, TX: tx }
+        writeln!(log, "ready").unwrap();
+        init::LateResources { EXTI: device.EXTI, AHRS: ahrs, TX: tx, LOG: log }
     }
 
-    #[interrupt(resources = [EXTI, AHRS, TX])]
-    fn EXTI0() {
+    #[interrupt(binds=EXTI0, resources = [EXTI, AHRS, TX, LOG])]
+    fn handle_mpu() {
         let exti = resources.EXTI;
         let mut ahrs = resources.AHRS;
         let mut tx = resources.TX;
+        let log = resources.LOG;
         match ahrs.estimate() {
             Ok((dcm, _gyro, _dt_s)) => {
                 let pitch = dcm.pitch;
-                let pitch_bits = pitch.to_bits();
-                let bytes: [u8; 4] =
-                    unsafe { core::mem::transmute(pitch_bits) };
-                for byte in bytes.iter() {
-                    tx.write(*byte);
-                }
+                writefloats!(tx, "p:", pitch);
             },
-            Err(_e) => hprintln!("err").unwrap(),
+            Err(_e) => writeln!(log, "err").unwrap(),
         };
-        // unpend?
+
         exti.pr1.modify(|_, w| w.pr0().set_bit());
     }
 };
