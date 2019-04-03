@@ -116,7 +116,7 @@ const APP: () = {
             Mpu9250::imu_with_reinit(spi,
                                      ncs,
                                      &mut delay,
-                                     &mut mpu9250::MpuConfig::imu(),
+                                     &mut mpu9250::MpuConfig::imu().gyro_temp_data_rate(mpu9250::GyroTempDataRate::DlpfConf(mpu9250::Dlpf::_2)),
                                      |spi, ncs| {
                                          let (dev_spi, (scl, miso, mosi)) =
                                              spi.free();
@@ -161,8 +161,8 @@ const APP: () = {
         let mut log = resources.LOG;
         match ahrs.estimate() {
             Ok((dcm, _gyro, _dt_s)) => {
-                let pitch = dcm.pitch;
-                writefloats!(tx, "p:", pitch);
+                let _pitch = dcm.pitch;
+                //writefloats!(tx, "p:", pitch);
             },
             Err(_e) => writeln!(log, "err").unwrap(),
         };
