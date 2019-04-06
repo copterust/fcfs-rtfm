@@ -9,12 +9,13 @@ TARGET_PATH := ./target/$(TARGET)/$(MODE)
 BIN := $(TARGET_PATH)/$(NAME)
 fea :=
 log := semihosting
-FEATURES := "--features=$(log),$(fea)"
+level := info
+FEATURES := "--features=log_$(log),level_$(level),$(fea)"
 
 $(BIN): build
 
 build:
-	cargo -v build $(RELEASE_FLAG) --target $(TARGET) --bin $(NAME) $(FEATURES)
+	cargo -v build $(RELEASE_FLAG) --target $(TARGET) --bin $(NAME) --no-default-features $(FEATURES)
 
 load: build
 	sh -c "openocd & arm-none-eabi-gdb -q $(BIN) & wait"

@@ -14,10 +14,12 @@ use panic_abort;
 
 mod ahrs;
 mod chrono;
+#[macro_use]
 mod logging;
 
 use asm_delay::{AsmDelay, CyclesToTime};
 use core::fmt::Write;
+use cortex_m_log::printer::Printer;
 use hal::delay::Delay;
 use hal::dma::{dma1, CircBuffer};
 use hal::gpio::{self, AltFn, AF5};
@@ -29,7 +31,6 @@ use hal::spi::Spi;
 use mpu9250::{Mpu9250, MpuConfig};
 use nb::block;
 use rtfm::{app, Instant};
-use ryu;
 
 type SPI = Spi<hal::stm32f30x::SPI1,
                (gpio::PB3<PullNone, AltFn<AF5, PushPull, HighSpeed>>,
@@ -39,25 +40,6 @@ type Dev =
     mpu9250::SpiDevice<SPI, gpio::PB0<PullNone, Output<PushPull, LowSpeed>>>;
 type MPU9250 = mpu9250::Mpu9250<Dev, mpu9250::Imu>;
 type USART = stm32f30x::USART2;
-
-macro_rules! writefloats {
-    (
-        $w:expr,
-        $prelude:expr,
-        $($exprs:expr),* $(,)*
-    ) => {
-        {
-            $w.write_str($prelude).unwrap();
-            $(
-                let mut b = ryu::Buffer::new();
-                let s = b.format($exprs);
-                $w.write_str(s).unwrap();
-                $w.write_char(';').unwrap();
-            )+
-            $w.write_char('\n').unwrap();
-        }
-    }
-}
 
 #[app(device = stm32f30x)]
 const APP: () = {
@@ -71,12 +53,12 @@ const APP: () = {
     #[init]
     fn init() -> init::LateResources {
         let freq = 72.mhz();
-        // interrupt pin 3 purple -- a0
         let device: stm32f30x::Peripherals = device;
 
         let mut rcc = device.RCC.constrain();
         let gpioa = device.GPIOA.split(&mut rcc.ahb);
         let gpiob = device.GPIOB.split(&mut rcc.ahb);
+        // interrupt pin 3 purple -- a0
         let _pa0 = gpioa.pa0.input().pull_type(PullDown);
         let pa1 =
             gpioa.pa1.output().output_speed(HighSpeed).pull_type(PullDown);
@@ -90,8 +72,8 @@ const APP: () = {
         device.EXTI.rtsr1.modify(|_, w| w.tr0().set_bit());
         // ^^ this should be done via HAL
 
-        let mut log = logging::create().unwrap();
-        writeln!(log, "init!").unwrap();
+        let mut log = logging::create(core.ITM).unwrap();
+        info!(log, "init!");
         let mut flash = device.FLASH.constrain();
         let clocks = rcc.cfgr
                         .sysclk(freq)
@@ -107,9 +89,9 @@ const APP: () = {
                                   mpu9250::MODE,
                                   1.mhz(),
                                   clocks);
-        writeln!(log, "spi ok").unwrap();
+        info!(log, "spi ok");
         let mut delay = AsmDelay::new(freq);
-        writeln!(log, "delay ok").unwrap();
+        info!(log, "delay ok");
         // MPU
         let gyro_rate = mpu9250::GyroTempDataRate::DlpfConf(mpu9250::Dlpf::_2);
         let mut mpu9250 =
@@ -127,16 +109,16 @@ const APP: () = {
                                                          clocks);
                                          Some((new_spi, ncs))
                                      }).unwrap();
-        writeln!(log, "mpu ok").unwrap();
+        info!(log, "mpu ok");
 
         mpu9250.enable_interrupts(mpu9250::InterruptEnable::RAW_RDY_EN)
                .unwrap();
-        writeln!(log, "enabled; ").unwrap();
-        writeln!(log, "now: {:?}", mpu9250.get_enabled_interrupts().unwrap());
+        info!(log, "enabled; ");
+        info!(log, "now: {:?}", mpu9250.get_enabled_interrupts());
         let mut ahrs = ahrs::AHRS::create_calibrated(mpu9250,
                                                      &mut delay,
                                                      chrono::rtfm_stopwatch(freq)).unwrap();
-        writeln!(log, "ahrs ok").unwrap();
+        info!(log, "ahrs ok");
         let mut usart2 =
             device.USART2.serial((gpioa.pa2, gpioa.pa3),
                                  hal::time::Bps(460800),
@@ -144,7 +126,7 @@ const APP: () = {
         let (tx, _rx) = usart2.split();
 
         ahrs.setup_time();
-        writeln!(log, "ready").unwrap();
+        info!(log, "ready");
 
         init::LateResources { EXTI: device.EXTI,
                               AHRS: ahrs,
@@ -170,10 +152,9 @@ const APP: () = {
                     nb::block!(tx.write(*byte));
                 }
                 nb::block!(tx.write(0));
-                // writeln!(log, "P: {:?}", bytes).unwrap();
-                // writefloats!(tx, ":", pitch);
+                debugfloats!(log, ":", dcm.yaw, dcm.pitch, dcm.roll);
             },
-            Err(_e) => writeln!(log, "err").unwrap(),
+            Err(_e) => error!(log, "err"),
         };
 
         exti.pr1.modify(|_, w| w.pr0().set_bit());
