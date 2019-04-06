@@ -143,8 +143,8 @@ const APP: () = {
         let mut tx = resources.TX;
         let mut log = resources.LOG;
         match ahrs.estimate() {
-            Ok((dcm, _gyro, _dt_s)) => {
-                let pitch = dcm.pitch;
+            Ok(ahrs::AhrsResult { ypr, accel, gyro, biased_gyro, dt_s }) => {
+                let pitch = ypr.pitch;
                 let pitch_bits = pitch.to_bits();
                 let bytes: [u8; 4] =
                     unsafe { core::mem::transmute(pitch_bits) };
@@ -152,7 +152,7 @@ const APP: () = {
                     nb::block!(tx.write(*byte));
                 }
                 nb::block!(tx.write(0));
-                debugfloats!(log, ":", dcm.yaw, dcm.pitch, dcm.roll);
+                debugfloats!(log, ":", ypr.yaw, pitch, ypr.roll);
             },
             Err(_e) => error!(log, "err"),
         };

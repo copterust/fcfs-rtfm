@@ -58,45 +58,28 @@ impl<DEV, E, T> AHRS<DEV, T>
         self.timer_ms.reset();
     }
 
-    pub fn estimate(&mut self)
-                    -> Result<(dcmimu::EulerAngles, Vector3<f32>, f32), E> {
+    pub fn estimate(&mut self) -> Result<AhrsResult, E> {
         let meas = self.mpu.all()?;
         let dt_s = self.timer_ms.split_time_s();
-        let accel = meas.accel; //
-                                //  - self.accel_biases;
-        let mut gyro = meas.gyro;
-
-        let (dcm, gyro_biases) =
+        let accel = meas.accel;
+        let gyro = meas.gyro;
+        let (ypr, gyro_biases) =
             self.dcmimu.update(vec_to_tuple(&gyro), vec_to_tuple(&accel), dt_s);
         let gyro_biases =
             Vector3::new(gyro_biases.x, gyro_biases.y, gyro_biases.z);
-        gyro = gyro - gyro_biases;
-        Ok((dcm, gyro, dt_s))
+        let biased_gyro = gyro - gyro_biases;
+        Ok(AhrsResult { ypr, accel, gyro, biased_gyro, dt_s })
     }
 }
 
-pub fn to_euler(q: &Quaternion<f32>) -> (f32, f32, f32) {
-    let sqw = q.w * q.w;
-    let sqx = q.i * q.i;
-    let sqy = q.j * q.j;
-    let sqz = q.k * q.k;
-    let pitch = asinf(-2. * (q.i * q.k - q.j * q.w));
-    let m = q.i * q.j + q.k * q.w;
-    let mut roll;
-    let mut yaw;
-    if fabsf((m - 0.5)) < 1e-8 {
-        roll = 0.;
-        yaw = 2. * atan2f(q.i, q.w);
-    } else if fabsf(m + 0.5) < 1e-8 {
-        roll = -2. * atan2f(q.i, q.w);
-        yaw = 0.;
-    } else {
-        roll = atan2f(2. * (q.i * q.j + q.k * q.w), sqx - sqy - sqz + sqw);
-        yaw = atan2f(2. * (q.j * q.k + q.i * q.w), -sqx - sqy + sqz + sqw);
-    }
-    (roll, pitch, yaw)
+pub struct AhrsResult {
+    pub ypr: dcmimu::EulerAngles,
+    pub accel: Vector3<f32>,
+    pub gyro: Vector3<f32>,
+    pub biased_gyro: Vector3<f32>,
+    pub dt_s: f32,
 }
 
-pub fn vec_to_tuple<T: nalgebra::base::Scalar>(inp: &Vector3<T>) -> (T, T, T) {
+fn vec_to_tuple<T: nalgebra::base::Scalar>(inp: &Vector3<T>) -> (T, T, T) {
     (inp.x, inp.y, inp.z)
 }

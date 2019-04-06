@@ -63,20 +63,19 @@ macro_rules! error {
 
 macro_rules! writelnfloats {
     (
-        $printer:expr,
+        $w:expr,
         $prelude:expr,
         $($exprs:expr),* $(,)*
     ) => {
         {
-            let w = $printer.destination();
-            w.write_str($prelude).unwrap();
+            $w.write_str($prelude).unwrap();
             $(
                 let mut b = ryu::Buffer::new();
                 let s = b.format($exprs);
-                w.write_str(s).unwrap();
-                w.write_char(';').unwrap();
+                $w.write_str(s).unwrap();
+                $w.write_char(';').unwrap();
             )+
-            w.write_char('\n').unwrap();
+            $w.write_char('\n').unwrap();
         }
     }
 }
@@ -87,7 +86,7 @@ macro_rules! infofloats {
         $prelude:expr,
         $($exprs:expr),* $(,)*
     ) => {
-        info_guard!(writelnfloats!($printer, $prelude, $($exprs, )+));
+        info_guard!(writelnfloats!($printer.destination(), $prelude, $($exprs, )+));
     }
 }
 
@@ -97,6 +96,6 @@ macro_rules! debugfloats {
         $prelude:expr,
         $($exprs:expr),* $(,)*
     ) => {
-        debug_guard!(writelnfloats!($printer, $prelude, $($exprs, )+));
+        debug_guard!(writelnfloats!($printer.destination(), $prelude, $($exprs, )+));
     }
 }
