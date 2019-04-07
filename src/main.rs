@@ -47,7 +47,7 @@ type MPU9250 = mpu9250::Mpu9250<Dev, mpu9250::Imu>;
 type USART = stm32f30x::USART2;
 type TxUsart = Tx<USART>;
 type CH = dma1::C7;
-type Buffer = Vec<u8, U42>;
+type Buffer = Vec<u8, U256>;
 type TxReady = (&'static mut Buffer, CH, TxUsart);
 type TxBusy = dma::Transfer<dma::R, &'static mut Buffer, CH, TxUsart>;
 static mut BUFFER: Buffer = Vec::new();
@@ -168,6 +168,7 @@ const APP: () = {
                     ActionState::MaybeBusy(transfer) => {
                         if transfer.is_done() {
                             let (buffer, ch, tx) = transfer.wait();
+                            buffer.clear();
                             ActionState::Ready((buffer, ch, tx))
                         } else {
                             // not ready yet, skip tansfer
@@ -193,22 +194,18 @@ const APP: () = {
 };
 
 fn format_ahrs_result(buffer: &mut Buffer, result: &ahrs::AhrsResult) {
-    buffer[0] = 0;
-    let mut i = 1;
+    buffer.push(0);
     // ax,ay,az,gx,gy,gz,dt_s,y,p,r
     for f in result.short_results().into_iter() {
-        format_float(buffer, i, *f);
-        i += 4;
+        format_float(buffer, *f);
     }
-    buffer[41] = 0;
+    buffer.push(0);
 }
 
-fn format_float(buffer: &mut [u8], offset: usize, f: f32) {
+fn format_float(buffer: &mut Buffer, f: f32) {
     let bits = f.to_bits();
     let bytes: [u8; 4] = unsafe { core::mem::transmute(bits) };
-    let mut i = offset;
     for byte in bytes.iter() {
-        buffer[i] = *byte;
-        i += 1;
+        buffer.push(*byte);
     }
 }
