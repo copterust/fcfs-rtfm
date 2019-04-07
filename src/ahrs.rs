@@ -5,9 +5,7 @@ use ehal::blocking::delay::DelayMs;
 use ehal::blocking::spi;
 use ehal::digital::OutputPin;
 use libm::{asinf, atan2f, fabsf};
-use mpu9250::Mpu9250;
-use nalgebra::geometry::Quaternion;
-use nalgebra::Vector3;
+use mpu9250::{Mpu9250, Vector3};
 
 // Magnetometer calibration parameters
 // NOTE you need to use the right parameters for *your* magnetometer
@@ -72,14 +70,48 @@ impl<DEV, E, T> AHRS<DEV, T>
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct AhrsResult {
-    pub ypr: dcmimu::EulerAngles,
     pub accel: Vector3<f32>,
     pub gyro: Vector3<f32>,
-    pub biased_gyro: Vector3<f32>,
     pub dt_s: f32,
+    pub ypr: dcmimu::EulerAngles,
+    pub biased_gyro: Vector3<f32>,
 }
 
-fn vec_to_tuple<T: nalgebra::base::Scalar>(inp: &Vector3<T>) -> (T, T, T) {
+impl AhrsResult {
+    /// ax,ay,az,gx,gy,gz,dt_s,y,p,r
+    pub fn short_results(&self) -> [f32; 10] {
+        [self.accel.x,
+         self.accel.y,
+         self.accel.z,
+         self.gyro.x,
+         self.gyro.y,
+         self.gyro.z,
+         self.dt_s,
+         self.ypr.yaw,
+         self.ypr.pitch,
+         self.ypr.roll]
+    }
+
+    // ax,ay,az,gx,gy,gz,dt_s,y,p,r,bgx,bgy,bgz
+    pub fn full_results(&self) -> [f32; 13] {
+        [self.accel.x,
+         self.accel.y,
+         self.accel.z,
+         self.gyro.x,
+         self.gyro.y,
+         self.gyro.z,
+         self.dt_s,
+         self.ypr.yaw,
+         self.ypr.pitch,
+         self.ypr.roll,
+         self.biased_gyro.x,
+         self.biased_gyro.y,
+         self.biased_gyro.z]
+    }
+}
+
+fn vec_to_tuple(inp: &Vector3<f32>) -> (f32, f32, f32) {
     (inp.x, inp.y, inp.z)
 }
