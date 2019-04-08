@@ -128,14 +128,12 @@ mod dmatelemetry {
         type Arg = super::AhrsResult;
 
         fn write_arg(buffer: &mut TxBuffer, arg: &Self::Arg) {
+            buffer.push(0);
             // ax,ay,az,gx,gy,gz,dt_s,y,p,r
             for f in arg.short_results().into_iter() {
-                let mut b = ryu::Buffer::new();
-                let s = b.format(*f);
-                buffer.extend_from_slice(s.as_bytes());
-                buffer.push(';' as u8);
+                ByteWriter::store_float_as_bytes(buffer, *f);
             }
-            buffer.push('\n' as u8);
+            buffer.push(0);
         }
     }
 
@@ -144,12 +142,14 @@ mod dmatelemetry {
         type Arg = super::AhrsResult;
 
         fn write_arg(buffer: &mut TxBuffer, arg: &Self::Arg) {
-            buffer.push(0);
             // ax,ay,az,gx,gy,gz,dt_s,y,p,r
             for f in arg.short_results().into_iter() {
-                ByteWriter::store_float_as_bytes(buffer, *f);
+                let mut b = ryu::Buffer::new();
+                let s = b.format(*f);
+                buffer.extend_from_slice(s.as_bytes());
+                buffer.push(';' as u8);
             }
-            buffer.push(0);
+            buffer.push('\n' as u8);
         }
     }
 
