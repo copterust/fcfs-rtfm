@@ -14,43 +14,24 @@ use panic_abort;
 
 mod ahrs;
 mod chrono;
-mod utils;
 #[macro_use]
 mod logging;
+mod telemetry;
+mod types;
+
+use core::fmt::Write;
+
+use hal::delay::Delay;
+use hal::prelude::*;
 
 use asm_delay::{AsmDelay, CyclesToTime};
-use core::fmt::Write;
 use cortex_m_log::printer::Printer;
-use hal::delay::Delay;
-use hal::dma::{self, dma1};
-use hal::gpio::{self, AltFn, AF5};
-use hal::gpio::{HighSpeed, LowSpeed, Output, PullNone, PushPull};
-use hal::gpio::{PullDown, PullUp};
-use hal::prelude::*;
-use hal::serial::Tx;
-use hal::spi::Spi;
-use heapless::consts::*;
-use heapless::Vec;
 use mpu9250::{Mpu9250, MpuConfig};
 use nb::block;
 use rtfm::{app, Instant};
 
-use utils::ActionState;
-
-type SPI = Spi<hal::stm32f30x::SPI1,
-               (gpio::PB3<PullNone, AltFn<AF5, PushPull, HighSpeed>>,
-                gpio::PB4<PullNone, AltFn<AF5, PushPull, HighSpeed>>,
-                gpio::PB5<PullNone, AltFn<AF5, PushPull, HighSpeed>>)>;
-type Dev =
-    mpu9250::SpiDevice<SPI, gpio::PB0<PullNone, Output<PushPull, LowSpeed>>>;
-type MPU9250 = mpu9250::Mpu9250<Dev, mpu9250::Imu>;
-type USART = stm32f30x::USART2;
-type TxUsart = Tx<USART>;
-type CH = dma1::C7;
-type Buffer = Vec<u8, U256>;
-type TxReady = (&'static mut Buffer, CH, TxUsart);
-type TxBusy = dma::Transfer<dma::R, &'static mut Buffer, CH, TxUsart>;
-static mut BUFFER: Buffer = Vec::new();
+use telemetry::Telemetry;
+use types::*;
 
 #[app(device = stm32f30x)]
 const APP: () = {
@@ -59,8 +40,8 @@ const APP: () = {
     static mut LOG: logging::T = ();
     static mut DEBUG_PIN: hal::gpio::PA1<PullDown,
                                            Output<PushPull, HighSpeed>> = ();
-    // Option is needed to be able to change it in-flight
-    static mut TELE: Option<ActionState<TxReady, TxBusy>> = ();
+    // Option is needed to be able to change it in-flight (Option::take)
+    static mut TELE: Option<telemetry::T> = ();
 
     #[init]
     fn init() -> init::LateResources {
@@ -140,11 +121,9 @@ const APP: () = {
 
         ahrs.setup_time();
         info!(log, "ready");
-        // NOTE(unsafe): mutable static
-        let tele = unsafe { ActionState::Ready((&mut BUFFER, channels.7, tx)) };
         init::LateResources { EXTI: device.EXTI,
                               AHRS: ahrs,
-                              TELE: Some(tele),
+                              TELE: Some(telemetry::create(channels.7, tx)),
                               LOG: log,
                               DEBUG_PIN: pa1 }
     }
@@ -156,29 +135,16 @@ const APP: () = {
         let exti = resources.EXTI;
         let mut ahrs = resources.AHRS;
         let mut log = resources.LOG;
-        // NOTE(unwrap): resources.TELE is always Some
-        let mut tele = resources.TELE.take().unwrap();
+        let mut maybe_tele = resources.TELE.take();
         match ahrs.estimate() {
             Ok(result) => {
-                let new_tele = match tele {
-                    ActionState::Ready((mut buffer, ch, tx)) => {
-                        format_ahrs_result(&mut buffer, &result);
-                        ActionState::MaybeBusy(tx.write_all(ch, buffer))
-                    },
-                    ActionState::MaybeBusy(transfer) => {
-                        if transfer.is_done() {
-                            let (buffer, ch, tx) = transfer.wait();
-                            buffer.clear();
-                            ActionState::Ready((buffer, ch, tx))
-                        } else {
-                            // not ready yet, skip tansfer
-                            // XXX: alternatevely, we can allocate bigger buffer
-                            //      and use its chunks.
-                            ActionState::MaybeBusy(transfer)
-                        }
-                    },
-                };
-                *resources.TELE = Some(new_tele);
+                // resources.TELE should always be Some, but for
+                // future proof, let's be safe
+                if let Some(tele) = maybe_tele {
+                    let new_tele = tele.send(&result);
+                    *resources.TELE = Some(new_tele);
+                }
+
                 debugfloats!(log,
                              ":",
                              result.ypr.yaw,
@@ -192,20 +158,3 @@ const APP: () = {
         resources.EXTI.pr1.modify(|_, w| w.pr0().set_bit());
     }
 };
-
-fn format_ahrs_result(buffer: &mut Buffer, result: &ahrs::AhrsResult) {
-    buffer.push(0);
-    // ax,ay,az,gx,gy,gz,dt_s,y,p,r
-    for f in result.short_results().into_iter() {
-        format_float(buffer, *f);
-    }
-    buffer.push(0);
-}
-
-fn format_float(buffer: &mut Buffer, f: f32) {
-    let bits = f.to_bits();
-    let bytes: [u8; 4] = unsafe { core::mem::transmute(bits) };
-    for byte in bytes.iter() {
-        buffer.push(*byte);
-    }
-}
