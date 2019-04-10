@@ -13,9 +13,13 @@ pub fn create(ch: crate::types::TxCh, tx: crate::types::TxUsart) -> T {
     #[cfg(telemetry = "telemetry_dummy")]
     return dummy::make();
     #[cfg(telemetry = "telemetry_bytes")]
-    return dmatelemetry::DmaTelemetry::bytewriter(ch, tx);
+    return dmatelemetry::DmaTelemetry::create(ch,
+                                              tx,
+                                              dmatelemetry::ByteWriter);
     #[cfg(telemetry = "telemetry_words")]
-    return dmatelemetry::DmaTelemetry::wordwriter(ch, tx);
+    return dmatelemetry::DmaTelemetry::create(ch,
+                                              tx,
+                                              dmatelemetry::WordWriter);
 }
 
 mod dummy {
@@ -69,16 +73,10 @@ mod dmatelemetry {
         }
     }
 
-    impl DmaTelemetry<TxReady, TxBusy, ByteWriter> {
-        pub fn bytewriter(ch: TxCh, tx: TxUsart) -> Self {
-            let bf = unsafe { &mut BUFFER };
-            let state = TransferState::Ready((bf, ch, tx));
-            DmaTelemetry::with_state(state)
-        }
-    }
-
-    impl DmaTelemetry<TxReady, TxBusy, WordWriter> {
-        pub fn wordwriter(ch: TxCh, tx: TxUsart) -> Self {
+    impl<TW: TelemetryWriter<Arg = super::AhrsResult>>
+        DmaTelemetry<TxReady, TxBusy, TW>
+    {
+        pub fn create(ch: TxCh, tx: TxUsart, _tw: TW) -> Self {
             let bf = unsafe { &mut BUFFER };
             let state = TransferState::Ready((bf, ch, tx));
             DmaTelemetry::with_state(state)
