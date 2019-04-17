@@ -11,8 +11,7 @@ test = false
 
 [dependencies]
 cortex-m = {version = "0.5.8", features = ["inline-asm", "const-fn"]}
-cortex-m-rt = "0.6.7"
-cortex-m-rtfm = {version = "0.4.2", features = ["nightly", "timer-queue"]}
+cortex-m-rt = "0.6.8"
 panic-abort = "0.3.1"
 stm32f30x = "*"
 ryu = "0.2"
@@ -22,6 +21,11 @@ dcmimu = "0.2.1"
 libm = "0.1.2"
 cortex-m-log = {version = "0.4.0", features = ["itm", "semihosting"]}
 heapless = {version = "0.4.2", features = ["const-fn", "smaller-atomics"]}
+
+[dependencies.cortex-m-rtfm]
+version = "0.4.2"
+git = "https://github.com/copterust/cortex-m-rtfm"
+features = ["nightly", "timer-queue"]
 
 [dependencies.mpu9250]
 version = "0.9.5"
