@@ -113,7 +113,7 @@ const APP: () = {
                                                      chrono::rtfm_stopwatch(freq)).unwrap();
         info!(log, "ahrs ok");
         let mut usart2 =
-            device.USART2.serial((gpioa.pa2, gpioa.pa3),
+            device.USART2.serial((gpioa.pa2, gpioa.pa15),
                                  hal::time::Bps(460800),
                                  clocks);
         let (tx, _rx) = usart2.split();
