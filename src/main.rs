@@ -91,7 +91,7 @@ const APP: () = {
             Mpu9250::imu_with_reinit(spi,
                                      ncs,
                                      &mut delay,
-                                     &mut MpuConfig::imu().gyro_temp_data_rate(gyro_rate),
+                                     &mut MpuConfig::imu().gyro_temp_data_rate(gyro_rate).sample_rate_divisor(3),
                                      |spi, ncs| {
                                          let (dev_spi, (scl, miso, mosi)) =
                                              spi.free();
