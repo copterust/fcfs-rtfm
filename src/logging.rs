@@ -1,3 +1,4 @@
+use cortex_m_log::destination::Itm as ItmDestination;
 use cortex_m_log::modes::InterruptOk;
 use cortex_m_log::printer::dummy::Dummy;
 use cortex_m_log::printer::itm::Itm;
@@ -14,7 +15,7 @@ pub fn create(itm: cortex_m::peripheral::ITM) -> Result<T, ()> {
     #[cfg(log = "log_dummy")]
     let log = Ok(Dummy);
     #[cfg(log = "log_itm")]
-    let log = Itm::<InterruptOk>::new(itm);
+    let log = Ok(Itm::<InterruptOk>::new(ItmDestination::new(itm)));
     log
 }
 

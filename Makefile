@@ -21,6 +21,9 @@ build:
 load: build
 	sh -c "openocd & arm-none-eabi-gdb -q $(BIN) & wait"
 
+gdb: build
+	arm-none-eabi-gdb -q $(BIN)
+
 clean:
 	cargo -v clean
 

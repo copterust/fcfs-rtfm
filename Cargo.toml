@@ -28,7 +28,7 @@ git = "https://github.com/copterust/cortex-m-rtfm"
 features = ["nightly", "timer-queue"]
 
 [dependencies.mpu9250]
-version = "0.9.5"
+version = "0.10.1"
 # path = "../mpu9250"
 # git = "https://github.com/copterust/mpu9250"
 

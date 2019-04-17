@@ -12,36 +12,26 @@ port = serial.Serial(sys.argv[1], baudrate=460800, timeout=3.0)
 client = InfluxDBClient('localhost', 8086, 'root', 'root', 'example')
 client.create_database('example')
 
-def mk_points(value):
+def mk_points(f):
     return [{
             "measurement": "drone",
             "tags": {
             },
             "time": int(time.time()) * 1_000_000_000,
-            "fields": {
-                "rawpitch": value,
-                "pitch": np.degrees(value)
-            }
+            "fields": f
         }]
 
+def hacky(points):
+    (ax, ay, az, gx, gy, gz, dts, y, p, r) = points
+    d = dict(locals())
+    del d['points']
+    return d
 
-# fmt:
-# :<float>;\n
-buff = []
 while True:
-    rcv = port.read(1)
-    if rcv == b'\n':
-        k = b''.join(buff)
-        try:
-            value = float(k.decode('ascii'))
-            print(value)
-            if math.isfinite(value):
-                client.write_points(mk_points(value))
-        except Exception as e:
-            # pyserial shit
-            print(e, file=sys.stderr)
-        buff = []
-    elif rcv == b':' or rcv == b';':
-        pass
-    else:
-        buff.append(rcv)
+    line = port.read_until()
+    try:
+        comps = [float(a.strip()) for a in line.split(b';') if a.strip()]
+        client.write_points(mk_points(hacky(comps)))
+    except Exception as e:
+        print(e, file=sys.stderr)
+        continue
