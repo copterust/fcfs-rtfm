@@ -23,8 +23,7 @@ cortex-m-log = {version = "0.4.0", features = ["itm", "semihosting"]}
 heapless = {version = "0.4.2", features = ["const-fn", "smaller-atomics"]}
 
 [dependencies.cortex-m-rtfm]
-version = "0.4.2"
-git = "https://github.com/copterust/cortex-m-rtfm"
+version = "0.4.3"
 features = ["nightly", "timer-queue"]
 
 [dependencies.mpu9250]
