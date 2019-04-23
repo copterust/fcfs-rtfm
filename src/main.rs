@@ -14,6 +14,7 @@ use panic_abort;
 
 mod ahrs;
 mod chrono;
+mod mixer;
 #[macro_use]
 mod logging;
 mod telemetry;
@@ -51,12 +52,14 @@ const APP: () = {
         let mut rcc = device.RCC.constrain();
         let gpioa = device.GPIOA.split(&mut rcc.ahb);
         let gpiob = device.GPIOB.split(&mut rcc.ahb);
-        // interrupt pin 3 purple -- a0
-        let _pa0 = gpioa.pa0.input().pull_type(PullDown);
+        // debug pin; TODO: change
         let pa1 =
             gpioa.pa1.output().output_speed(HighSpeed).pull_type(PullDown);
 
         // this should be properly done via HAL or rtfm vv
+        // interrupt pin 3 purple -- a0
+        // XXX: TODO: change pin
+        let _pa0 = gpioa.pa0.input().pull_type(PullDown);
         rcc.apb2.enr().write(|w| w.syscfgen().enabled());
         device.SYSCFG.exticr1.modify(|_, w| unsafe { w.exti0().bits(0b000) });
         // Enable external interrupt on rise
@@ -113,9 +116,7 @@ const APP: () = {
                                                      chrono::rtfm_stopwatch(freq)).unwrap();
         info!(log, "ahrs ok");
         let mut usart2 =
-            device.USART2.serial((gpioa.pa2, gpioa.pa15),
-                                 hal::time::Bps(460800),
-                                 clocks);
+            device.USART2.serial((gpioa.pa2, gpioa.pa15), Bps(460800), clocks);
         let (tx, _rx) = usart2.split();
         let channels = device.DMA1.split(&mut rcc.ahb);
 

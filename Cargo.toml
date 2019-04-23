@@ -27,7 +27,7 @@ version = "0.4.3"
 features = ["nightly", "timer-queue"]
 
 [dependencies.mpu9250]
-version = "0.10.1"
+version = "0.11"
 # path = "../mpu9250"
 # git = "https://github.com/copterust/mpu9250"
 
@@ -37,10 +37,14 @@ version = "0.2.2"
 package = "embedded-hal"
 
 [dependencies.hal]
-version = "0.14.1"
+version = "0.15"
 # path = "../alt-stm32f30x-hal"
 package = "alt-stm32f30x-hal"
 features = ["rt"]
+
+[dependencies.nalgebra]
+default-features = false
+version = "0.18"
 
 [profile]
 [profile.release]
