@@ -10,7 +10,7 @@ name = "fcfs-rtfm"
 test = false
 
 [dependencies]
-cortex-m = {version = "0.5.8", features = ["inline-asm", "const-fn"]}
+cortex-m = {version = "=0.5.8", features = ["inline-asm", "const-fn"]}
 cortex-m-rt = "0.6.8"
 panic-abort = "0.3.1"
 stm32f30x = "*"

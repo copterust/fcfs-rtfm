@@ -2,6 +2,5 @@
 .#*
 .cargo-ok
 .gdb_history
-Cargo.lock
 target/
 env/
