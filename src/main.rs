@@ -36,7 +36,7 @@ use types::*;
 
 #[app(device = stm32f30x)]
 const APP: () = {
-    static EXTI: stm32f30x::EXTI = ();
+    static mut EXTI0: hal::exti::Exti<hal::exti::EXTI0> = ();
     static mut AHRS: ahrs::AHRS<Dev, chrono::T> = ();
     static mut LOG: logging::T = ();
     static mut DEBUG_PIN: hal::gpio::PA1<PullDown,
@@ -59,14 +59,10 @@ const APP: () = {
         // this should be properly done via HAL or rtfm vv
         // interrupt pin 3 purple -- a0
         // XXX: TODO: change pin
-        let _pa0 = gpioa.pa0.input().pull_type(PullDown);
-        rcc.apb2.enr().write(|w| w.syscfgen().enabled());
-        device.SYSCFG.exticr1.modify(|_, w| unsafe { w.exti0().bits(0b000) });
-        // Enable external interrupt on rise
-        device.EXTI.imr1.modify(|_, w| w.mr0().set_bit());
-        device.EXTI.emr1.modify(|_, w| w.mr0().set_bit());
-        device.EXTI.rtsr1.modify(|_, w| w.tr0().set_bit());
-        // ^^ this should be done via HAL
+        let pa0 = gpioa.pa0.input().pull_type(PullDown);
+        let mut syscfg = device.SYSCFG.constrain(&mut rcc.apb2);
+        let mut exti = device.EXTI.constrain();
+        exti.EXTI0.bind(pa0, &mut syscfg);
 
         let mut log = logging::create(core.ITM).unwrap();
         info!(log, "init!");
@@ -122,7 +118,7 @@ const APP: () = {
 
         ahrs.setup_time();
         info!(log, "ready");
-        init::LateResources { EXTI: device.EXTI,
+        init::LateResources { EXTI0: exti.EXTI0,
                               AHRS: ahrs,
                               TELE: Some(telemetry::create(channels.7, tx)),
                               LOG: log,
@@ -130,10 +126,9 @@ const APP: () = {
     }
 
     #[interrupt(binds=EXTI0,
-                resources = [EXTI, AHRS, LOG, DEBUG_PIN, TELE])]
+                resources = [EXTI0, AHRS, LOG, DEBUG_PIN, TELE])]
     fn handle_mpu() {
         resources.DEBUG_PIN.set_high();
-        let exti = resources.EXTI;
         let mut ahrs = resources.AHRS;
         let mut log = resources.LOG;
         let mut maybe_tele = resources.TELE.take();
@@ -156,6 +151,6 @@ const APP: () = {
         };
 
         resources.DEBUG_PIN.set_low();
-        resources.EXTI.pr1.modify(|_, w| w.pr0().set_bit());
+        resources.EXTI0.unpend();
     }
 };

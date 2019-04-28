@@ -18,7 +18,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "alt-stm32f30x-hal"
-version = "0.15.0"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitrate 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -195,7 +195,7 @@ dependencies = [
 name = "fcfs-rtfm"
 version = "0.1.0"
 dependencies = [
- "alt-stm32f30x-hal 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "alt-stm32f30x-hal 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "asm-delay 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cfg_feature_groups 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.5.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -553,7 +553,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [metadata]
 "checksum alga 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a033171acc255e6d0c6490e701097632377c2435fdf084a2a4c0cbeb9e1395ac"
 "checksum aligned 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d39da9b88ae1a81c03c9c082b8db83f1d0e93914126041962af61034ab44c4a5"
-"checksum alt-stm32f30x-hal 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)" = "980238498e69dfcf787cdc15c209c6cce895ccc12c5ef1476e261cccba05db11"
+"checksum alt-stm32f30x-hal 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6f63364131d29433f826a173c71bfdb721f0ac9cc8c395e5619521acf8d496f3"
 "checksum approx 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "f0e60b75072ecd4168020818c0107f2857bb6c4e64252d8d3983f6263b40a5c3"
 "checksum as-slice 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "293dac66b274fab06f95e7efb05ec439a6b70136081ea522d270bc351ae5bb27"
 "checksum asm-delay 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "90c289c19ffdbfd65515325c0762b9397e16e6a6d163b8276a9f67d797774731"
