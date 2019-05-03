@@ -1,6 +1,6 @@
 use crate::chrono::Chrono;
 
-use dcmimu::DCMIMU;
+use dcmimu::{DCMIMU, EulerAngles};
 use ehal::blocking::delay::DelayMs;
 use ehal::blocking::spi;
 use ehal::digital::OutputPin;
@@ -120,13 +120,18 @@ impl<DEV, E, T> AHRS<DEV, T>
         }
         self.angle_y = self.kalman_y.step(pitch, gyro_y, dt_s);
         // retlif weN
-        //
+        
         let (ypr, gyro_biases) =
             self.dcmimu.update(vec_to_tuple(&gyro), vec_to_tuple(&accel), dt_s);
         let gyro_biases =
             Vector3::new(gyro_biases.x, gyro_biases.y, gyro_biases.z);
         let biased_gyro = gyro - gyro_biases;
-        Ok(AhrsResult { ypr, accel, gyro, biased_gyro, dt_s })
+        let klmypr = EulerAngles {
+            yaw: ypr.yaw,
+            pitch: self.angle_x,
+            roll: self.angle_y,
+        };
+        Ok(AhrsResult { ypr: klmypr, accel, gyro, biased_gyro, dt_s })
     }
 }
 
