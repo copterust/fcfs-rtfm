@@ -1,16 +1,18 @@
+// From http://blog.tkjelectronics.dk/2012/09/a-practical-approach-to-kalman-filter-and-how-to-implement-it/
+
 type Float = f32;
 
 pub struct AngularKalman {
-    q_a: Float,
-    q_b: Float,
-    r: Float,
-    angle: Float,
-    bias: Float,
-    rate: Float,
-    p: [[Float; 2]; 2],
-    k: [Float; 2],
-    y: Float,
-    s: Float,
+    pub q_a: Float,
+    pub q_b: Float,
+    pub r: Float,
+    pub angle: Float,
+    pub bias: Float,
+    pub rate: Float,
+    pub p: [[Float; 2]; 2],
+    pub k: [Float; 2],
+    pub y: Float,
+    pub s: Float,
 }
 
 impl AngularKalman {
@@ -36,5 +38,8 @@ impl AngularKalman {
         self.p[1][1] -= self.k[1] * self.p[0][1];
 
         return self.angle;
+    }
+    pub fn set_angle(&mut self, angle: f32) {
+        self.angle = angle;
     }
 }

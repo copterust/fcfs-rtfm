@@ -4,7 +4,7 @@ use dcmimu::DCMIMU;
 use ehal::blocking::delay::DelayMs;
 use ehal::blocking::spi;
 use ehal::digital::OutputPin;
-use libm::{asinf, atan2f, fabsf};
+use libm::{asinf, atan2f, atanf, fabsf, sqrtf};
 use mpu9250::{Mpu9250, Vector3};
 
 // Magnetometer calibration parameters
@@ -18,6 +18,9 @@ use mpu9250::{Mpu9250, Vector3};
 // const M_SCALE_Y: f32 = 0.9;
 // const M_BIAS_Z: f32 = -220.;
 // const M_SCALE_Z: f32 = 1.2;
+//
+
+mod kalman;
 
 // TODO: make generic over Imu/Marg
 pub struct AHRS<DEV, T> {
@@ -25,7 +28,13 @@ pub struct AHRS<DEV, T> {
     dcmimu: DCMIMU,
     //     accel_biases: Vector3<f32>,
     timer_ms: T,
+    angle_x: f32,
+    angle_y: f32,
+    kalman_x: kalman::AngularKalman,
+    kalman_y: kalman::AngularKalman,
 }
+
+const RAD_TO_DEG:f32 = 57.295779513082320876798154814105;
 
 impl<DEV, E, T> AHRS<DEV, T>
     where DEV: mpu9250::Device<Error = E>,
@@ -45,11 +54,42 @@ impl<DEV, E, T> AHRS<DEV, T>
         // to measurements, by adjusting biases once.
         // TODO: find real Z axis.
         // accel_biases.z -= mpu9250::G;
+        let ky = kalman::AngularKalman{
+            q_a: 0.001,
+            q_b: 0.002,
+            r: 0.04,
+            angle: 0.0,
+            bias: 0.0,
+            rate: 0.0,
+            p: [[0.0, 0.0], [0.0, 0.0]],
+            k: [0.0, 0.0],
+            y: 0.0,
+            s: 0.0
+        };
+
+        let kx = kalman::AngularKalman{
+            q_a: 0.001,
+            q_b: 0.002,
+            r: 0.04,
+            angle: 0.0,
+            bias: 0.0,
+            rate: 0.0,
+            p: [[0.0, 0.0], [0.0, 0.0]],
+            k: [0.0, 0.0],
+            y: 0.0,
+            s: 0.0
+        };
+
         let dcmimu = DCMIMU::new();
         Ok(AHRS { mpu,
                   dcmimu,
                   // accel_biases,
-                  timer_ms })
+                  timer_ms,
+                  angle_x: 0.0,
+                  angle_y: 0.0,
+                  kalman_x: kx,
+                  kalman_y: ky,
+                  })
     }
 
     pub fn setup_time(&mut self) {
@@ -61,6 +101,26 @@ impl<DEV, E, T> AHRS<DEV, T>
         let dt_s = self.timer_ms.split_time_s();
         let accel = meas.accel;
         let gyro = meas.gyro;
+
+        // New filter
+        let roll  = atan2f(accel[1], accel[2]) * RAD_TO_DEG;
+        let pitch = atanf(-accel[0] / sqrtf(accel[1] * accel[1] + accel[2] * accel[2])) * RAD_TO_DEG;
+
+        let gyro_x = gyro[0] / 131.0;
+        let mut gyro_y = gyro[1] / 131.0;
+
+        if ((roll < -90.0 && self.angle_x > 90.0) || (roll > 90.0 && self.angle_x < -90.0)) {
+            self.kalman_x.set_angle(roll);
+            self.angle_x = roll;
+        } else {
+            self.angle_x = self.kalman_x.step(roll, gyro_x, dt_s);
+        }
+        if (fabsf(self.angle_x) > 90.0) {
+            gyro_y = -gyro_y;
+        }
+        self.angle_y = self.kalman_y.step(pitch, gyro_y, dt_s);
+        // retlif weN
+        //
         let (ypr, gyro_biases) =
             self.dcmimu.update(vec_to_tuple(&gyro), vec_to_tuple(&accel), dt_s);
         let gyro_biases =
