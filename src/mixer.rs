@@ -1,7 +1,7 @@
 use nalgebra::{self, clamp};
 
 use hal::gpio::Gpioa;
-use hal::stm32f30x::Peripherals;
+use hal::pac::Peripherals;
 use hal::timer;
 
 use crate::types::*;
@@ -45,16 +45,16 @@ fn create6(quad_tim: QuadMotorsTim,
     let f = freq;
     // MOTORS:
     // pa0 -- pa3
-    let (ch1, ch2, ch3, ch4, mut timer2) =
-        timer::tim2::Timer::new(quad_tim, f, clocks).take_all();
+    let ((ch1, ch2, ch3, ch4), mut timer2) =
+        timer::tim2::Timer::new(quad_tim, f, clocks).use_pwm();
     let mut m1_rear_right = pwm!(quad_pins.0, ch1);
     let mut m2_front_right = pwm!(quad_pins.1, ch2);
     let mut m3_rear_left = pwm!(quad_pins.2, ch3);
     let mut m4_front_left = pwm!(quad_pins.3, ch4);
     timer2.enable();
 
-    let (ch5, ch6, _, _, mut timer3) =
-        timer::tim3::Timer::new(plus2_tim, f, clocks).take_all();
+    let ((ch5, ch6, _, _), mut timer3) =
+        timer::tim3::Timer::new(plus2_tim, f, clocks).use_pwm();
     let mut m5_left = pwm!(plus2_pins.0, ch5);
     let mut m6_right = pwm!(plus2_pins.1, ch6);
     timer3.enable();

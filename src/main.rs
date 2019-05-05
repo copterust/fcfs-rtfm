@@ -34,7 +34,7 @@ use rtfm::{app, Instant};
 use telemetry::Telemetry;
 use types::*;
 
-#[app(device = stm32f30x)]
+#[app(device = hal::pac)]
 const APP: () = {
     static mut EXTI0: hal::exti::Exti<hal::exti::EXTI0> = ();
     static mut AHRS: ahrs::AHRS<Dev, chrono::T> = ();
@@ -47,7 +47,7 @@ const APP: () = {
     #[init]
     fn init() -> init::LateResources {
         let freq = 72.mhz();
-        let device: stm32f30x::Peripherals = device;
+        let device: hal::pac::Peripherals = device;
 
         let mut rcc = device.RCC.constrain();
         let gpioa = device.GPIOA.split(&mut rcc.ahb);
