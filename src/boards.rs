@@ -54,6 +54,7 @@ mod defs {
                      gpiob: gpio::Gpiob,
                      ahb: &mut hal::rcc::AHB)
                      -> Result {
+        // XXX: this is ugly, we mix selection of pins and configuration...
         let pa11: DebugPinT =
             gpioa.pa11.output().output_speed(HighSpeed).pull_type(PullDown);
         let pa0: MpuIntPinT = gpioa.pa0.input().pull_type(PullDown);
