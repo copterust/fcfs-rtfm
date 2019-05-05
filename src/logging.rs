@@ -21,7 +21,7 @@ pub fn create(itm: cortex_m::peripheral::ITM) -> Result<T, ()> {
 
 macro_rules! debug_guard {
     ($($args:tt)+) => {
-        if cfg!(loglevel = "level_debug") {
+        if cfg!(level = "level_debug") {
             $($args)+;
         }
     }
@@ -29,7 +29,7 @@ macro_rules! debug_guard {
 
 macro_rules! info_guard {
     ($($args:tt)+) => {
-        if cfg!(loglevel = "level_debug") || cfg!(loglevel = "level_info") {
+        if cfg!(level = "level_debug") || cfg!(level = "level_info") {
             $($args)+;
         }
     }
@@ -40,7 +40,7 @@ macro_rules! debug {
         $printer: expr,
         $($args:tt)+
     ) => {
-        debug_guard!(write!($printer.destination(), $($args)+).unwrap())
+        debug_guard!(writeln!($printer.destination(), $($args)+).unwrap())
     }
 }
 
@@ -49,7 +49,7 @@ macro_rules! info {
         $printer:expr,
         $($args:tt)+
     ) => {
-        info_guard!(write!($printer.destination(), $($args)+).unwrap())
+        info_guard!(writeln!($printer.destination(), $($args)+).unwrap())
     }
 }
 
