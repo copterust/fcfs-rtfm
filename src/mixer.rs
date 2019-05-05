@@ -1,10 +1,7 @@
 use nalgebra::{self, clamp};
 
-use hal::gpio::Gpioa;
-use hal::pac::Peripherals;
-use hal::timer;
-
 use crate::types::*;
+use hal::timer;
 
 pub existential type T: MotorCtrl;
 
@@ -61,7 +58,7 @@ fn create6(quad_tim: QuadMotorsTim,
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
     let map = Map6::from_row_slice(&[
-        0.567, -0.815, -1.0, 1.0, /* rear left */
+        0.567, -0.815, -1.0, 1.0, /* rear right */
         0.567, 0.815, -1.0, 1.0, /* front right */
         -0.567, -0.815, 1.0, 1.0, /* rear left */
         -0.567, 0.815, 1.0, 1.0, /* front left */

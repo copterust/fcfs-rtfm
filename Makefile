@@ -11,7 +11,8 @@ fea :=
 log := semihosting
 level := info
 telemetry := bytes
-FEATURES := "--features=log_$(log),level_$(level),telemetry_$(telemetry),$(fea)"
+configuration := dev
+FEATURES := "--features=log_$(log),level_$(level),telemetry_$(telemetry),configuration_$(configuration),$(fea)"
 
 $(BIN): build
 
