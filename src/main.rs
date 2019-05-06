@@ -85,12 +85,15 @@ const APP: () = {
         let mut delay = AsmDelay::new(freq);
         info!(log, "delay ok");
         // MPU
-        let gyro_rate = mpu9250::GyroTempDataRate::DlpfConf(mpu9250::Dlpf::_2);
+        let gyro_rate = mpu9250::GyroTempDataRate::DlpfConf(mpu9250::Dlpf::_0);
         let mut mpu9250 =
             Mpu9250::imu_with_reinit(spi,
                                      ncs,
                                      &mut delay,
-                                     &mut MpuConfig::imu().gyro_temp_data_rate(gyro_rate).sample_rate_divisor(3),
+                                     &mut MpuConfig::imu().gyro_temp_data_rate(gyro_rate)
+                                        .accel_scale(mpu9250::AccelScale::_2G)
+                                        .gyro_scale(mpu9250::GyroScale::_250DPS)
+                                        .sample_rate_divisor(7),
                                      |spi, ncs| {
                                          let (dev_spi, (scl, miso, mosi)) =
                                              spi.free();

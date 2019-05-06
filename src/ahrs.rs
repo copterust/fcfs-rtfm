@@ -102,18 +102,18 @@ impl<DEV, E, T> AHRS<DEV, T>
 
         // New filter
         let roll  = atan2f(accel[1], accel[2]);
-        let pitch = atanf(-accel[0] / sqrtf(accel[1] * accel[1] + accel[2] * accel[2]));
+        let pitch = atan2f(-accel[0], sqrtf(accel[1] * accel[1] + accel[2] * accel[2]));
 
         let gyro_x = gyro[0];
         let mut gyro_y = gyro[1];
 
-        if ((roll < -1.57 && self.angle_x > 1.57) || (roll > 1.57 && self.angle_x < -1.57)) {
+        if ((roll < -1.5707963267948966 && self.angle_x > 1.5707963267948966) || (roll > 1.5707963267948966 && self.angle_x < -1.5707963267948966)) {
             self.kalman_x.set_angle(roll);
             self.angle_x = roll;
         } else {
             self.angle_x = self.kalman_x.step(roll, gyro_x, dt_s);
         }
-        if (fabsf(self.angle_x) > 1.57) {
+        if (fabsf(self.angle_x) > 1.5707963267948966) {
             gyro_y = -gyro_y;
         }
         self.angle_y = self.kalman_y.step(pitch, gyro_y, dt_s);
