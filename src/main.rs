@@ -87,23 +87,13 @@ const APP: () = {
         // MPU
         let gyro_rate = mpu9250::GyroTempDataRate::DlpfConf(mpu9250::Dlpf::_0);
         let mut mpu9250 =
-            Mpu9250::imu_with_reinit(spi,
+            Mpu9250::imu(spi,
                                      ncs,
                                      &mut delay,
                                      &mut MpuConfig::imu().gyro_temp_data_rate(gyro_rate)
                                         .accel_scale(mpu9250::AccelScale::_2G)
                                         .gyro_scale(mpu9250::GyroScale::_250DPS)
-                                        .sample_rate_divisor(7),
-                                     |spi, ncs| {
-                                         let (dev_spi, (scl, miso, mosi)) =
-                                             spi.free();
-                                         let new_spi =
-                                             dev_spi.spi((scl, miso, mosi),
-                                                         mpu9250::MODE,
-                                                         20.mhz(),
-                                                         clocks);
-                                         Some((new_spi, ncs))
-                                     }).unwrap();
+                                        .sample_rate_divisor(7)).unwrap();
         info!(log, "mpu ok");
 
         mpu9250.enable_interrupts(mpu9250::InterruptEnable::RAW_RDY_EN)
