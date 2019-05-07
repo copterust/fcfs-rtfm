@@ -54,8 +54,8 @@ impl<DEV, E, T> AHRS<DEV, T>
         // accel_biases.z -= mpu9250::G;
         let ky = kalman::AngularKalman{
             q_a: 0.001,
-            q_b: 0.002,
-            r: 0.04,
+            q_b: 0.003,
+            r: 0.03,
             angle: 0.0,
             bias: 0.0,
             rate: 0.0,
@@ -67,8 +67,8 @@ impl<DEV, E, T> AHRS<DEV, T>
 
         let kx = kalman::AngularKalman{
             q_a: 0.001,
-            q_b: 0.002,
-            r: 0.04,
+            q_b: 0.003,
+            r: 0.03,
             angle: 0.0,
             bias: 0.0,
             rate: 0.0,
@@ -101,7 +101,7 @@ impl<DEV, E, T> AHRS<DEV, T>
         let gyro = meas.gyro;
 
         // New filter
-        let roll  = atan2f(accel[1], accel[2]);
+        let roll  = atan2f(accel[1], sqrtf(accel[0] * accel[0] + accel[2] * accel[2]));
         let pitch = atan2f(-accel[0], sqrtf(accel[1] * accel[1] + accel[2] * accel[2]));
 
         let gyro_x = gyro[0];
