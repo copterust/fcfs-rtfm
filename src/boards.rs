@@ -1,15 +1,18 @@
-use crate::types::*;
+pub use crate::prelude::*;
 
-pub existential type DebugPinT: ehal::digital::OutputPin;
-pub existential type NcsPinT: ehal::digital::OutputPin;
-pub existential type MpuIntPinT: gpio::GPIOPin + ehal::digital::InputPin;
-
-pub struct BoardConfiguration<SPI, SpiPins, Usart, UsartPins, TxCh> {
-    pub debug_pin: DebugPinT,
-    pub mpu_interrupt_pin: MpuIntPinT,
+pub struct BoardConfiguration<DPT,
+ MIPT,
+ SPI,
+ SpiPins,
+ NPT,
+ Usart,
+ UsartPins,
+ TxCh> {
+    pub debug_pin: DPT,
+    pub mpu_interrupt_pin: MIPT,
     pub spi: SPI,
     pub spi_pins: SpiPins,
-    pub ncs: NcsPinT,
+    pub ncs: NPT,
     pub usart: Usart,
     pub usart_pins: UsartPins,
     pub tx_ch: TxCh,
@@ -32,44 +35,49 @@ mod defs {}
 mod defs {
     use super::*;
 
+    pub type DebugPinDef<A, B> = gpio::PA11<A, B>;
+    type DT = DebugPinDef<PullNone, Input>;
+
+    pub type MpuIntPinDef<A, B> = gpio::PA0<A, B>;
+    type MT = MpuIntPinDef<PullNone, Input>;
+
+    pub type NcsPinDef<B> = gpio::PB0<PullNone, B>;
+    type NT = NcsPinDef<Input>;
+
     pub type SpiT = hal::pac::SPI1;
-    // XXX: this is ugly, we only want to define input types here...
-    //      or maybe we want to setup everything here, instead...
-    pub type SpiPins = (gpio::PB3<PullNone, AltFn<AF5, PushPull, HighSpeed>>,
-                        gpio::PB4<PullNone, AltFn<AF5, PushPull, HighSpeed>>,
-                        gpio::PB5<PullNone, AltFn<AF5, PushPull, HighSpeed>>);
-    pub type SpiInputPins = (gpio::PB3<PullNone, Input>,
-                             gpio::PB4<PullNone, Input>,
-                             gpio::PB5<PullNone, Input>);
+    pub type SCLPin<B> = gpio::PB3<PullNone, B>;
+    pub type MISOPin<B> = gpio::PB4<PullNone, B>;
+    pub type MOSIPin<B> = gpio::PB5<PullNone, B>;
+    pub type SpiInputPins = (SCLPin<Input>, MISOPin<Input>, MOSIPin<Input>);
     pub type USART = hal::pac::USART2;
     pub type UsartPins =
         (gpio::PA2<PullNone, Input>, gpio::PA15<PullNone, Input>);
     pub type TxUsart = Tx<USART>;
     pub type TxCh = hal::dma::dma1::C7;
 
-    type Result =
-        BoardConfiguration<SpiT, SpiInputPins, USART, UsartPins, TxCh>;
+    type Result = BoardConfiguration<DT,
+                                     MT,
+                                     SpiT,
+                                     SpiInputPins,
+                                     NT,
+                                     USART,
+                                     UsartPins,
+                                     TxCh>;
     pub fn configure(device: InputDevice,
                      gpioa: gpio::Gpioa,
                      gpiob: gpio::Gpiob,
                      ahb: &mut hal::rcc::AHB)
                      -> Result {
-        // XXX: this is ugly, we mix selection of pins and configuration...
-        let pa11: DebugPinT =
-            gpioa.pa11.output().output_speed(HighSpeed).pull_type(PullDown);
-        let pa0: MpuIntPinT = gpioa.pa0.input().pull_type(PullDown);
-        let pb0: NcsPinT = gpiob.pb0.output().push_pull();
-
         let scl_sck = gpiob.pb3;
-        let sda_sdi_mosi = gpiob.pb5;
         let ad0_sdo_miso = gpiob.pb4;
+        let sda_sdi_mosi = gpiob.pb5;
         let dma_channels = device.DMA1.split(ahb);
 
-        BoardConfiguration { debug_pin: pa11,
-                             mpu_interrupt_pin: pa0,
+        BoardConfiguration { debug_pin: gpioa.pa11,
+                             mpu_interrupt_pin: gpioa.pa0,
                              spi: device.SPI1,
                              spi_pins: (scl_sck, ad0_sdo_miso, sda_sdi_mosi),
-                             ncs: pb0,
+                             ncs: gpiob.pb0,
                              usart: device.USART2,
                              usart_pins: (gpioa.pa2, gpioa.pa15),
                              tx_ch: dma_channels.7 }
@@ -77,3 +85,24 @@ mod defs {
 }
 
 pub use defs::*;
+
+pub type SpiPins = (SCLPin<AltFn<AF5, PushPull, HighSpeed>>,
+                    MISOPin<AltFn<AF5, PushPull, HighSpeed>>,
+                    MOSIPin<AltFn<AF5, PushPull, HighSpeed>>);
+
+pub type SPI = Spi<SpiT, SpiPins>;
+pub type NcsPinT = NcsPinDef<Output<PushPull, LowSpeed>>;
+pub type Dev = mpu9250::SpiDevice<SPI, NcsPinT>;
+pub type MPU9250 = mpu9250::Mpu9250<Dev, mpu9250::Imu>;
+
+pub type DebugPinT = DebugPinDef<PullDown, Output<PushPull, HighSpeed>>;
+
+pub type QuadMotors = (gpio::PA0<PullNone, gpio::Input>,
+                       gpio::PA1<PullNone, gpio::Input>,
+                       gpio::PA2<PullNone, gpio::Input>,
+                       gpio::PA3<PullNone, gpio::Input>);
+pub type QuadMotorsTim = hal::pac::TIM2;
+
+pub type Add2MotorsTim = hal::pac::TIM3;
+pub type Add2Motors =
+    (gpio::PA6<PullNone, gpio::Input>, gpio::PA7<PullNone, gpio::Input>);

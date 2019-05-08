@@ -9,7 +9,7 @@ pub trait Telemetry {
 pub existential type T: Telemetry<Arg = AhrsResult>;
 
 #[allow(unused)]
-pub fn create(ch: crate::types::TxCh, tx: crate::types::TxUsart) -> T {
+pub fn create(ch: crate::boards::TxCh, tx: crate::boards::TxUsart) -> T {
     #[cfg(telemetry = "telemetry_dummy")]
     return dummy::make();
     #[cfg(telemetry = "telemetry_bytes")]
@@ -40,7 +40,7 @@ mod dummy {
 
 #[cfg(any(telemetry = "telemetry_bytes", telemetry = "telemetry_words"))]
 mod dmatelemetry {
-    use crate::types::*;
+    use crate::boards::*;
 
     use heapless::consts::*;
     use heapless::Vec;
