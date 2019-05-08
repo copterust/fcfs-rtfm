@@ -1,6 +1,6 @@
 use nalgebra::{self, clamp};
 
-use crate::types::*;
+use crate::boards::*;
 use hal::timer;
 
 pub existential type T: MotorCtrl;

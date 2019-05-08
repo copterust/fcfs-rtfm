@@ -17,7 +17,6 @@ mod boards;
 mod chrono;
 mod mixer;
 mod prelude;
-mod types;
 #[macro_use]
 mod logging;
 mod telemetry;
@@ -33,16 +32,16 @@ use mpu9250::{Mpu9250, MpuConfig};
 use nb::block;
 use rtfm::{app, Instant};
 
+use boards::*;
 use prelude::*;
 use telemetry::Telemetry;
-use types::*;
 
 #[app(device = hal::pac)]
 const APP: () = {
     static mut EXTI0: hal::exti::Exti<hal::exti::EXTI0> = ();
     static mut AHRS: ahrs::AHRS<Dev, chrono::T> = ();
     static mut LOG: logging::T = ();
-    static mut DEBUG_PIN: boards::DebugPinT = ();
+    static mut DEBUG_PIN: DebugPinT = ();
     // Option is needed to be able to change it in-flight (Option::take)
     static mut TELE: Option<telemetry::T> = ();
 
@@ -73,8 +72,10 @@ const APP: () = {
                                      gpioa,
                                      gpiob,
                                      &mut rcc.ahb);
-
-        exti.EXTI0.bind(conf.mpu_interrupt_pin, &mut syscfg);
+        let debug_pin =
+            conf.debug_pin.output().output_speed(HighSpeed).pull_type(PullDown);
+        let mpu_interrupt_pin = conf.mpu_interrupt_pin.pull_type(PullDown);
+        exti.EXTI0.bind(mpu_interrupt_pin, &mut syscfg);
 
         // SPI1
         let spi = conf.spi.spi(conf.spi_pins, mpu9250::MODE, 1.mhz(), clocks);
@@ -82,10 +83,11 @@ const APP: () = {
         let mut delay = AsmDelay::new(clocks.sysclk());
         info!(log, "delay ok");
         // MPU
+        let ncs_pin = conf.ncs.output().push_pull();
         let gyro_rate = mpu9250::GyroTempDataRate::DlpfConf(mpu9250::Dlpf::_2);
         let mut mpu9250 =
             Mpu9250::imu_with_reinit(spi,
-                                     conf.ncs,
+                                     ncs_pin,
                                      &mut delay,
                                      &mut MpuConfig::imu().gyro_temp_data_rate(gyro_rate).sample_rate_divisor(3),
                                      |spi, ncs| {
@@ -118,7 +120,7 @@ const APP: () = {
                               AHRS: ahrs,
                               TELE: Some(telemetry::create(conf.tx_ch, tx)),
                               LOG: log,
-                              DEBUG_PIN: conf.debug_pin }
+                              DEBUG_PIN: debug_pin }
     }
 
     #[interrupt(binds=EXTI0,
