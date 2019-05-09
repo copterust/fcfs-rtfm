@@ -91,7 +91,7 @@ pub type SpiPins = (SCLPin<AltFn<AF5, PushPull, HighSpeed>>,
                     MOSIPin<AltFn<AF5, PushPull, HighSpeed>>);
 
 pub type SPI = Spi<SpiT, SpiPins>;
-pub type NcsPinT = NcsPinDef<Output<PushPull, LowSpeed>>;
+pub type NcsPinT = NcsPinDef<Output<PushPull, HighSpeed>>;
 pub type Dev = mpu9250::SpiDevice<SPI, NcsPinT>;
 pub type MPU9250 = mpu9250::Mpu9250<Dev, mpu9250::Imu>;
 

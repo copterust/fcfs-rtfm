@@ -83,7 +83,7 @@ const APP: () = {
         let mut delay = AsmDelay::new(clocks.sysclk());
         info!(log, "delay ok");
         // MPU
-        let ncs_pin = conf.ncs.output().push_pull();
+        let ncs_pin = conf.ncs.output().push_pull().output_speed(HighSpeed);
         let gyro_rate = mpu9250::GyroTempDataRate::DlpfConf(mpu9250::Dlpf::_2);
         let mut mpu9250 =
             Mpu9250::imu_with_reinit(spi,
