@@ -1,7 +1,7 @@
 use crate::chrono::Chrono;
-
-use dcmimu::{DCMIMU, EulerAngles};
+use dcmimu::{EulerAngles, DCMIMU};
 use ehal::blocking::delay::DelayMs;
+
 use ehal::blocking::spi;
 use ehal::digital::OutputPin;
 use libm::{asinf, atan2f, atanf, fabsf, sqrtf};
@@ -52,31 +52,27 @@ impl<DEV, E, T> AHRS<DEV, T>
         // to measurements, by adjusting biases once.
         // TODO: find real Z axis.
         // accel_biases.z -= mpu9250::G;
-        let ky = kalman::AngularKalman{
-            q_a: 0.001,
-            q_b: 0.003,
-            r: 0.03,
-            angle: 0.0,
-            bias: 0.0,
-            rate: 0.0,
-            p: [[0.0, 0.0], [0.0, 0.0]],
-            k: [0.0, 0.0],
-            y: 0.0,
-            s: 0.0
-        };
+        let ky = kalman::AngularKalman { q_a: 0.001,
+                                         q_b: 0.003,
+                                         r: 0.03,
+                                         angle: 0.0,
+                                         bias: 0.0,
+                                         rate: 0.0,
+                                         p: [[0.0, 0.0], [0.0, 0.0]],
+                                         k: [0.0, 0.0],
+                                         y: 0.0,
+                                         s: 0.0 };
 
-        let kx = kalman::AngularKalman{
-            q_a: 0.001,
-            q_b: 0.003,
-            r: 0.03,
-            angle: 0.0,
-            bias: 0.0,
-            rate: 0.0,
-            p: [[0.0, 0.0], [0.0, 0.0]],
-            k: [0.0, 0.0],
-            y: 0.0,
-            s: 0.0
-        };
+        let kx = kalman::AngularKalman { q_a: 0.001,
+                                         q_b: 0.003,
+                                         r: 0.03,
+                                         angle: 0.0,
+                                         bias: 0.0,
+                                         rate: 0.0,
+                                         p: [[0.0, 0.0], [0.0, 0.0]],
+                                         k: [0.0, 0.0],
+                                         y: 0.0,
+                                         s: 0.0 };
 
         let dcmimu = DCMIMU::new();
         Ok(AHRS { mpu,
@@ -86,8 +82,7 @@ impl<DEV, E, T> AHRS<DEV, T>
                   angle_x: 0.0,
                   angle_y: 0.0,
                   kalman_x: kx,
-                  kalman_y: ky,
-                  })
+                  kalman_y: ky })
     }
 
     pub fn setup_time(&mut self) {
@@ -101,13 +96,18 @@ impl<DEV, E, T> AHRS<DEV, T>
         let gyro = meas.gyro;
 
         // New filter
-        let roll  = atan2f(accel[1], sqrtf(accel[0] * accel[0] + accel[2] * accel[2]));
-        let pitch = atan2f(-accel[0], sqrtf(accel[1] * accel[1] + accel[2] * accel[2]));
+        let roll =
+            atan2f(accel[1], sqrtf(accel[0] * accel[0] + accel[2] * accel[2]));
+        let pitch =
+            atan2f(-accel[0], sqrtf(accel[1] * accel[1] + accel[2] * accel[2]));
 
         let gyro_x = gyro[0];
         let mut gyro_y = gyro[1];
 
-        if ((roll < -1.5707963267948966 && self.angle_x > 1.5707963267948966) || (roll > 1.5707963267948966 && self.angle_x < -1.5707963267948966)) {
+        if ((roll < -1.5707963267948966 && self.angle_x > 1.5707963267948966)
+            || (roll > 1.5707963267948966
+                && self.angle_x < -1.5707963267948966))
+        {
             self.kalman_x.set_angle(roll);
             self.angle_x = roll;
         } else {
@@ -124,11 +124,9 @@ impl<DEV, E, T> AHRS<DEV, T>
         let gyro_biases =
             Vector3::new(gyro_biases.x, gyro_biases.y, gyro_biases.z);
         let biased_gyro = gyro - gyro_biases;
-        let klmypr = EulerAngles {
-            yaw: ypr.yaw,
-            pitch: self.angle_x,
-            roll: self.angle_y,
-        };
+        let klmypr = EulerAngles { yaw: ypr.yaw,
+                                   pitch: self.angle_x,
+                                   roll: self.angle_y };
         Ok(AhrsResult { ypr: klmypr, accel, gyro, biased_gyro, dt_s })
     }
 }
@@ -142,9 +140,17 @@ pub struct AhrsResult {
     pub biased_gyro: Vector3<f32>,
 }
 
-impl AhrsResult {
-    /// ax,ay,az,gx,gy,gz,dt_s,y,p,r
-    pub fn short_results(&self) -> [f32; 10] {
+pub trait AhrsShortResult {
+    fn short_results(&self) -> [f32; 10];
+}
+
+pub trait AhrsLongResult {
+    fn long_results(&self) -> [f32; 13];
+}
+
+impl AhrsShortResult for AhrsResult {
+    // ax,ay,az,gx,gy,gz,dt_s,y,p,r
+    fn short_results(&self) -> [f32; 10] {
         [self.accel.x,
          self.accel.y,
          self.accel.z,
@@ -156,9 +162,11 @@ impl AhrsResult {
          self.ypr.pitch,
          self.ypr.roll]
     }
+}
 
+impl AhrsLongResult for AhrsResult {
     // ax,ay,az,gx,gy,gz,dt_s,y,p,r,bgx,bgy,bgz
-    pub fn full_results(&self) -> [f32; 13] {
+    fn long_results(&self) -> [f32; 13] {
         [self.accel.x,
          self.accel.y,
          self.accel.z,

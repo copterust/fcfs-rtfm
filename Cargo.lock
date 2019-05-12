@@ -50,7 +50,7 @@ dependencies = [
 
 [[package]]
 name = "asm-delay"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitrate 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -196,7 +196,7 @@ name = "fcfs-rtfm"
 version = "0.1.0"
 dependencies = [
  "alt-stm32f30x-hal 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "asm-delay 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "asm-delay 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cfg_feature_groups 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.5.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m-log 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -555,7 +555,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum alt-stm32f30x-hal 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)" = "07c0ba7c8d319f8e7c5cdcff9ed7daea4ba85025429f965bebd76e762823d5e0"
 "checksum approx 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "f0e60b75072ecd4168020818c0107f2857bb6c4e64252d8d3983f6263b40a5c3"
 "checksum as-slice 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "293dac66b274fab06f95e7efb05ec439a6b70136081ea522d270bc351ae5bb27"
-"checksum asm-delay 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "90c289c19ffdbfd65515325c0762b9397e16e6a6d163b8276a9f67d797774731"
+"checksum asm-delay 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "cada7f8240a8f739b6dcab832ea1f7f193da50891604d80326b198e4f3336ac5"
 "checksum autocfg 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a6d640bee2da49f60a4068a7fae53acde8982514ab7bae8b8cea9e88cbcfd799"
 "checksum bare-metal 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "a3caf393d93b2d453e80638d0674597020cef3382ada454faacd43d1a55a735a"
 "checksum bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "228047a76f468627ca71776ecdebd732a3423081fcf5125585bcd7c49886ce12"
