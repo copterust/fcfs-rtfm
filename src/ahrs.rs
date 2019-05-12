@@ -1,7 +1,7 @@
 use crate::chrono::Chrono;
-
 use dcmimu::DCMIMU;
 use ehal::blocking::delay::DelayMs;
+
 use ehal::blocking::spi;
 use ehal::digital::OutputPin;
 use libm::{asinf, atan2f, fabsf};
@@ -79,9 +79,17 @@ pub struct AhrsResult {
     pub biased_gyro: Vector3<f32>,
 }
 
-impl AhrsResult {
-    /// ax,ay,az,gx,gy,gz,dt_s,y,p,r
-    pub fn short_results(&self) -> [f32; 10] {
+pub trait AhrsShortResult {
+    fn short_results(&self) -> [f32; 10];
+}
+
+pub trait AhrsLongResult {
+    fn long_results(&self) -> [f32; 13];
+}
+
+impl AhrsShortResult for AhrsResult {
+    // ax,ay,az,gx,gy,gz,dt_s,y,p,r
+    fn short_results(&self) -> [f32; 10] {
         [self.accel.x,
          self.accel.y,
          self.accel.z,
@@ -93,9 +101,11 @@ impl AhrsResult {
          self.ypr.pitch,
          self.ypr.roll]
     }
+}
 
+impl AhrsLongResult for AhrsResult {
     // ax,ay,az,gx,gy,gz,dt_s,y,p,r,bgx,bgy,bgz
-    pub fn full_results(&self) -> [f32; 13] {
+    fn long_results(&self) -> [f32; 13] {
         [self.accel.x,
          self.accel.y,
          self.accel.z,

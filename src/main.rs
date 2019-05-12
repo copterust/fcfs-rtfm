@@ -58,7 +58,7 @@ const APP: () = {
         let mut exti = device.EXTI.constrain();
         let mut flash = device.FLASH.constrain();
         let clocks = rcc.cfgr
-                        .sysclk(72.mhz())
+                        .sysclk(64.mhz())
                         .pclk1(32.mhz())
                         .pclk2(32.mhz())
                         .freeze(&mut flash.acr);
@@ -80,10 +80,13 @@ const APP: () = {
         // SPI1
         let spi = conf.spi.spi(conf.spi_pins, mpu9250::MODE, 1.mhz(), clocks);
         info!(log, "spi ok");
-        let mut delay = AsmDelay::new(clocks.sysclk());
+
+        // This is weird, but gives accurate delays with release
+        let mut delay = AsmDelay::new(42600.khz());
         info!(log, "delay ok");
         // MPU
         let ncs_pin = conf.ncs.output().push_pull().output_speed(HighSpeed);
+        // 8Hz
         let gyro_rate = mpu9250::GyroTempDataRate::DlpfConf(mpu9250::Dlpf::_2);
         let mut mpu9250 =
             Mpu9250::imu_with_reinit(spi,
@@ -105,8 +108,10 @@ const APP: () = {
         mpu9250.enable_interrupts(mpu9250::InterruptEnable::RAW_RDY_EN)
                .unwrap();
         info!(log, "enabled; ");
+
         info!(log, "now: {:?}", mpu9250.get_enabled_interrupts());
-        let chrono = chrono::rtfm_stopwatch(clocks.sysclk());
+        // XXX: this is weird; i would expect to see core freq here
+        let mut chrono = chrono::rtfm_stopwatch(64.mhz());
         let mut ahrs =
             ahrs::AHRS::create_calibrated(mpu9250, &mut delay, chrono).unwrap();
         info!(log, "ahrs ok");
@@ -130,6 +135,7 @@ const APP: () = {
         let mut ahrs = resources.AHRS;
         let mut log = resources.LOG;
         let mut maybe_tele = resources.TELE.take();
+
         match ahrs.estimate() {
             Ok(result) => {
                 // resources.TELE should always be Some, but for

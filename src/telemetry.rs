@@ -40,6 +40,7 @@ mod dummy {
 
 #[cfg(any(telemetry = "telemetry_bytes", telemetry = "telemetry_words"))]
 mod dmatelemetry {
+    use crate::ahrs::AhrsShortResult;
     use crate::boards::*;
 
     use heapless::consts::*;
