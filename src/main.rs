@@ -114,8 +114,7 @@ const APP: () = {
         info!(log, "now: {:?}", mpu9250.get_enabled_interrupts());
         // XXX: this is weird; i would expect to see core freq here
         let mut chrono = chrono::rtfm_stopwatch(64.mhz());
-        let mut ahrs =
-            ahrs::AHRS::create_calibrated(mpu9250, &mut delay, chrono).unwrap();
+        let mut ahrs = ahrs::AHRS::create(mpu9250, &mut delay, chrono);
         info!(log, "ahrs ok");
         let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
         let (tx, _rx) = usart.split();
@@ -133,7 +132,7 @@ const APP: () = {
     #[interrupt(binds=EXTI0,
                 resources = [EXTI0, AHRS, LOG, DEBUG_PIN, TELE])]
     fn handle_mpu() {
-        resources.DEBUG_PIN.set_high();
+        let _ = resources.DEBUG_PIN.set_high();
         let mut ahrs = resources.AHRS;
         let mut log = resources.LOG;
         let mut maybe_tele = resources.TELE.take();
@@ -156,7 +155,7 @@ const APP: () = {
             Err(_e) => error!(log, "err"),
         };
 
-        resources.DEBUG_PIN.set_low();
+        let _ = resources.DEBUG_PIN.set_low();
         resources.EXTI0.unpend();
     }
 };

@@ -3,7 +3,6 @@ use dcmimu::{EulerAngles, DCMIMU};
 use ehal::blocking::delay::DelayMs;
 
 use ehal::blocking::spi;
-use ehal::digital::OutputPin;
 use libm::{asinf, atan2f, atanf, fabsf, sqrtf};
 use mpu9250::{Mpu9250, Vector3};
 
@@ -38,10 +37,10 @@ impl<DEV, E, T> AHRS<DEV, T>
     where DEV: mpu9250::Device<Error = E>,
           T: Chrono
 {
-    pub fn create_calibrated<D>(mut mpu: Mpu9250<DEV, mpu9250::Imu>,
-                                delay: &mut D,
-                                timer_ms: T)
-                                -> Result<Self, mpu9250::Error<E>>
+    pub fn create<D>(mut mpu: Mpu9250<DEV, mpu9250::Imu>,
+                     delay: &mut D,
+                     timer_ms: T)
+                     -> Self
         where D: DelayMs<u8>
     {
         // let mut accel_biases = mpu.calibrate_at_rest(delay)?;
@@ -75,14 +74,14 @@ impl<DEV, E, T> AHRS<DEV, T>
                                          s: 0.0 };
 
         let dcmimu = DCMIMU::new();
-        Ok(AHRS { mpu,
-                  dcmimu,
-                  // accel_biases,
-                  timer_ms,
-                  angle_x: 0.0,
-                  angle_y: 0.0,
-                  kalman_x: kx,
-                  kalman_y: ky })
+        AHRS { mpu,
+               dcmimu,
+               // accel_biases,
+               timer_ms,
+               angle_x: 0.0,
+               angle_y: 0.0,
+               kalman_x: kx,
+               kalman_y: ky }
     }
 
     pub fn setup_time(&mut self) {
