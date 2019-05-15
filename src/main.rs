@@ -7,7 +7,6 @@
 #![feature(asm)]
 #![feature(const_fn)]
 #![feature(fn_traits, unboxed_closures)]
-#![feature(impl_trait_in_bindings)]
 #![feature(existential_type)]
 
 use panic_abort;
