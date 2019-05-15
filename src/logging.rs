@@ -13,7 +13,7 @@ pub fn create(itm: cortex_m::peripheral::ITM) -> Result<T, ()> {
     #[cfg(log = "log_semihosting")]
     let log = Semihosting::<InterruptOk, _>::stdout();
     #[cfg(log = "log_dummy")]
-    let log = Ok(Dummy);
+    let log = Ok(Dummy::new());
     #[cfg(log = "log_itm")]
     let log = Ok(Itm::<InterruptOk>::new(ItmDestination::new(itm)));
     log
