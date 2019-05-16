@@ -113,6 +113,7 @@ mod dmatelemetry {
         }
     }
 
+    const MAGIC: [u8; 3] = [108, 111, 108];
     pub struct ByteWriter;
     impl ByteWriter {
         fn store_float_as_bytes(buffer: &mut TxBuffer, f: f32) {
@@ -127,12 +128,11 @@ mod dmatelemetry {
         type Arg = super::AhrsResult;
 
         fn write_arg(buffer: &mut TxBuffer, arg: &Self::Arg) {
-            buffer.push(0);
+            buffer.extend_from_slice(&MAGIC);
             // ax,ay,az,gx,gy,gz,dt_s,y,p,r
             for f in arg.short_results().into_iter() {
                 ByteWriter::store_float_as_bytes(buffer, *f);
             }
-            buffer.push(0);
         }
     }
 
