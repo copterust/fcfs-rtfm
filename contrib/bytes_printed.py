@@ -7,15 +7,15 @@ import numpy as np
 port = serial.Serial(sys.argv[1], baudrate=460800, timeout=3.0)
 
 MAGIC = b'lol'
-PACKET_BYTES = 9 * 4
-want_now = 64
+PACKET_BYTES = 10 * 4
+want_now = 68
 raw = []
 
 def fmt_and_reset(b):
     in_bytes = bytes(b)
-    nine_floats = struct.unpack('fffffffff', in_bytes)
+    ten_floats = struct.unpack('ffffffffff', in_bytes)
     b.clear()
-    return nine_floats
+    return ten_floats
 
 while True:
     packet = port.read(want_now)
@@ -26,7 +26,7 @@ while True:
     for p in parts:
         if (len(raw) + len(p) == PACKET_BYTES) and not skipped_part :
             raw.extend(p)
-            nf = fmt_and_reset(raw)
-            print(*nf)
+            tf = fmt_and_reset(raw)
+            print(*tf)
         else:
             skipped_part = True
