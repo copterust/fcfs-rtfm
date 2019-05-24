@@ -8,6 +8,7 @@
 #![feature(const_fn)]
 #![feature(fn_traits, unboxed_closures)]
 #![feature(existential_type)]
+#![feature(maybe_uninit_extra)]
 
 use panic_abort;
 
@@ -37,7 +38,7 @@ use telemetry::Telemetry;
 
 #[app(device = hal::pac)]
 const APP: () = {
-    static mut EXTI0: hal::exti::Exti<hal::exti::EXTI0> = ();
+    static mut EXTI0H: hal::exti::Exti<hal::exti::EXTI0> = ();
     static mut AHRS: ahrs::AHRS<Dev, chrono::T> = ();
     static mut LOG: logging::T = ();
     static mut DEBUG_PIN: DebugPinT = ();
@@ -45,9 +46,9 @@ const APP: () = {
     static mut TELE: Option<telemetry::T> = ();
 
     #[init]
-    fn init() -> init::LateResources {
-        let device: hal::pac::Peripherals = device;
-        let mut log = logging::create(core.ITM).unwrap();
+    fn init(ctx: init::Context) -> init::LateResources {
+        let device: hal::pac::Peripherals = ctx.device;
+        let mut log = logging::create(ctx.core.ITM).unwrap();
         info!(log, "init!");
 
         let mut rcc = device.RCC.constrain();
@@ -119,7 +120,7 @@ const APP: () = {
         info!(log, "ready");
         ahrs.setup_time();
 
-        init::LateResources { EXTI0: exti.EXTI0,
+        init::LateResources { EXTI0H: exti.EXTI0,
                               AHRS: ahrs,
                               TELE: Some(telemetry::create(conf.tx_ch, tx)),
                               LOG: log,
@@ -127,12 +128,12 @@ const APP: () = {
     }
 
     #[interrupt(binds=EXTI0,
-                resources = [EXTI0, AHRS, LOG, DEBUG_PIN, TELE])]
-    fn handle_mpu() {
-        let _ = resources.DEBUG_PIN.set_high();
-        let mut ahrs = resources.AHRS;
-        let mut log = resources.LOG;
-        let mut maybe_tele = resources.TELE.take();
+                resources = [EXTI0H, AHRS, LOG, DEBUG_PIN, TELE])]
+    fn handle_mpu(ctx: handle_mpu::Context) {
+        let _ = ctx.resources.DEBUG_PIN.set_high();
+        let mut ahrs = ctx.resources.AHRS;
+        let mut log = ctx.resources.LOG;
+        let mut maybe_tele = ctx.resources.TELE.take();
 
         match ahrs.estimate() {
             Ok(result) => {
@@ -140,7 +141,7 @@ const APP: () = {
                 // future proof, let's be safe
                 if let Some(tele) = maybe_tele {
                     let new_tele = tele.send(&result);
-                    *resources.TELE = Some(new_tele);
+                    *ctx.resources.TELE = Some(new_tele);
                 }
 
                 debugfloats!(log,
@@ -152,7 +153,7 @@ const APP: () = {
             Err(_e) => error!(log, "err"),
         };
 
-        let _ = resources.DEBUG_PIN.set_low();
-        resources.EXTI0.unpend();
+        let _ = ctx.resources.DEBUG_PIN.set_low();
+        ctx.resources.EXTI0H.unpend();
     }
 };
