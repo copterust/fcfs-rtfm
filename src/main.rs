@@ -111,7 +111,7 @@ const APP: () = {
 
         info!(log, "now: {:?}", mpu9250.get_enabled_interrupts());
         // XXX: this is weird; i would expect to see core freq here
-        let mut chrono = chrono::rtfm_stopwatch(64.mhz());
+        let mut chrono = chrono::rtfm_stopwatch(128.mhz());
         let mut ahrs = ahrs::AHRS::create(mpu9250, &mut delay, chrono);
         info!(log, "ahrs ok");
         let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
