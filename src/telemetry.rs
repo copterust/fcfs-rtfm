@@ -109,7 +109,10 @@ mod dmatelemetry {
                 },
             };
 
-            DmaTelemetry::with_state(ns)
+            match ns {
+                TransferState::MaybeBusy(_) => DmaTelemetry::with_state(ns),
+                TransferState::Ready(_) => DmaTelemetry::with_state(ns).send(arg),
+            }
         }
     }
 
