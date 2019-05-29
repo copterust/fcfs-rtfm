@@ -31,6 +31,7 @@ use cortex_m_log::printer::Printer;
 use mpu9250::{Mpu9250, MpuConfig};
 use nb::block;
 use rtfm::{app, Instant};
+use won2010;
 
 use boards::*;
 use prelude::*;
@@ -118,13 +119,61 @@ const APP: () = {
                                      }).unwrap();
         info!(log, "mpu ok");
 
+        mpu9250.calibrate_at_rest(&mut delay).unwrap();
+
+        info!(log, "calibrate ok");
+
+        let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
+        let (tx, mut rx) = usart.split();
+
+        let mut readings = [[0.0f32; 3]; 6];
+        for pos in 0..6 {
+            info!(log, "set position {}", pos);
+
+            nb::block!(rx.read());
+
+            let mut r = mpu9250.accel().unwrap();
+            for _ in 0..100 {
+                r += mpu9250.accel().unwrap();
+                delay.delay_ms(20u8);
+            }
+            r * 0.01;
+
+            readings[pos] = [r[0], r[1], r[2]];
+
+        }
+
+        info!(log, "calibrating");
+
+        let mut won = won2010::Cal::new(9.81, 0.1);
+        let mut adj = None;
+        for _ in 0..50 {
+            if won.step(&readings) {
+                adj = Some(won.adj());
+                break;
+            }
+            info!(log, "did not converge");
+            panic!("dead");
+        }
+        let adj = adj.unwrap();
+
+        for pos in 0..6 {
+            let r = &readings[pos];
+            let a = [
+                adj[0].estimate(r[0]),
+                adj[1].estimate(r[1]),
+                adj[2].estimate(r[2]),
+            ];
+            info!(log, "- {}: {} {} {} == {}", pos, a[0], a[1], a[2], a[0]*a[0]+a[1]*a[1]+a[2]*a[2]);
+        }
+
         mpu9250.enable_interrupts(mpu9250::InterruptEnable::RAW_RDY_EN)
                .unwrap();
         info!(log, "int enabled; ");
 
         info!(log, "now: {:?}", mpu9250.get_enabled_interrupts());
         let mut chrono = chrono::rtfm_stopwatch(clocks.sysclk());
-        let mut ahrs = ahrs::AHRS::create(mpu9250, &mut delay, chrono);
+        let mut ahrs = ahrs::AHRS::create(mpu9250, &mut delay, chrono, adj);
         info!(log, "ahrs ok");
 
         info!(log, "ready");

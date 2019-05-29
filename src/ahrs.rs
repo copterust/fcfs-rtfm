@@ -24,6 +24,7 @@ pub struct AHRS<DEV, T> {
     dcmimu: DCMIMU,
     //     accel_biases: Vector3<f32>,
     timer_ms: T,
+    adj: [won2010::Adj; 3],
 }
 
 impl<DEV, E, T> AHRS<DEV, T>
@@ -32,7 +33,9 @@ impl<DEV, E, T> AHRS<DEV, T>
 {
     pub fn create<D>(mut mpu: Mpu9250<DEV, mpu9250::Imu>,
                      delay: &mut D,
-                     timer_ms: T)
+                     timer_ms: T,
+                     adj: [won2010::Adj; 3],
+    )
                      -> Self
         where D: DelayMs<u8>
     {
@@ -48,7 +51,8 @@ impl<DEV, E, T> AHRS<DEV, T>
         AHRS { mpu,
                dcmimu,
                // accel_biases,
-               timer_ms }
+               timer_ms,
+               adj }
     }
 
     pub fn setup_time(&mut self) {
@@ -59,6 +63,11 @@ impl<DEV, E, T> AHRS<DEV, T>
         let meas = self.mpu.all()?;
         let dt_s = self.timer_ms.split_time_s();
         let accel = meas.accel;
+        let accel = Vector3::new(
+            self.adj[0].estimate(meas.accel[0]),
+            self.adj[1].estimate(meas.accel[1]),
+            self.adj[2].estimate(meas.accel[2]),
+        );
         let gyro = meas.gyro;
         let (ypr, gyro_biases) =
             self.dcmimu.update(vec_to_tuple(&gyro), vec_to_tuple(&accel), dt_s);
