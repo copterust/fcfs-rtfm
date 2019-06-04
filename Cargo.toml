@@ -15,7 +15,7 @@ cortex-m-rt = "0.6.8"
 panic-abort = "0.3.1"
 ryu = "0.2"
 nb = "0.1.1"
-asm-delay = "0.6.0"
+asm-delay = "0.7.0"
 dcmimu = "0.2.1"
 libm = "0.1.2"
 heapless = {version = "0.4.2", features = ["const-fn", "smaller-atomics"]}
