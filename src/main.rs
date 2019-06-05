@@ -119,10 +119,6 @@ const APP: () = {
                                      }).unwrap();
         info!(log, "mpu ok");
 
-        mpu9250.calibrate_at_rest(&mut delay).unwrap();
-
-        info!(log, "calibrate ok");
-
         let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
         let (tx, mut rx) = usart.split();
 

@@ -57,7 +57,7 @@ opt-level = "z"
 codegen-units = 1
 debug = true
 lto = true
-incremental = false # nalgebra
+incremental = false
 
 [build-dependencies]
 cfg_feature_groups = "0.1.1"
