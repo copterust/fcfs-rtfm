@@ -71,7 +71,7 @@ level_error = []
 telemetry_bytes = []
 telemetry_words = []
 telemetry_dummy = []
-configuration_board = []
+configuration_drone = []
 configuration_dev = []
 default = ["log_semihosting",
            "level_debug",
