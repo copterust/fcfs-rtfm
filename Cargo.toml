@@ -73,10 +73,9 @@ telemetry_words = []
 telemetry_dummy = []
 configuration_board = []
 configuration_dev = []
-default = [
-        #"log_semihosting",
-           # "level_debug",
-         #  "telemetry_bytes",
+default = ["log_semihosting",
+           "level_debug",
+           "telemetry_bytes",
            "configuration_dev"]
 
 [package.metadata.feature_groups]
