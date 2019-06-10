@@ -7,7 +7,10 @@ pub struct BoardConfiguration<DPT,
  NPT,
  Usart,
  UsartPins,
- TxCh> {
+ TxCh,
+ ExtiNum>
+    where ExtiNum: hal::exti::ExternalInterrupt
+{
     pub debug_pin: DPT,
     pub mpu_interrupt_pin: MIPT,
     pub spi: SPI,
@@ -16,6 +19,7 @@ pub struct BoardConfiguration<DPT,
     pub usart: Usart,
     pub usart_pins: UsartPins,
     pub tx_ch: TxCh,
+    pub extih: hal::exti::Exti<ExtiNum>,
 }
 
 // XXX: ugly, but device.FLASH.constrain() prevents us from using
@@ -26,6 +30,7 @@ pub struct InputDevice {
     pub USART1: hal::pac::USART1,
     pub USART2: hal::pac::USART2,
     pub DMA1: hal::pac::DMA1,
+    pub EXTI: hal::exti::ExternalInterrupts,
 }
 
 #[cfg(configuration = "configuration_drone")]
@@ -54,20 +59,23 @@ mod defs {
         (gpio::PA2<PullNone, Input>, gpio::PA15<PullNone, Input>);
     pub type TxUsart = Tx<USART>;
     pub type TxCh = hal::dma::dma1::C7;
+    pub type ExtiNum = hal::exti::EXTI0;
 
-    type Result = BoardConfiguration<DT,
-                                     MT,
-                                     SpiT,
-                                     SpiInputPins,
-                                     NT,
-                                     USART,
-                                     UsartPins,
-                                     TxCh>;
+    type Res = BoardConfiguration<DT,
+                                  MT,
+                                  SpiT,
+                                  SpiInputPins,
+                                  NT,
+                                  USART,
+                                  UsartPins,
+                                  TxCh,
+                                  ExtiNum>;
     pub fn configure(device: InputDevice,
                      gpioa: gpio::Gpioa,
                      gpiob: gpio::Gpiob,
+                     gpioc: gpio::Gpioc,
                      ahb: &mut hal::rcc::AHB)
-                     -> Result {
+                     -> Res {
         let scl_sck = gpiob.pb3;
         let ad0_sdo_miso = gpiob.pb4;
         let sda_sdi_mosi = gpiob.pb5;
@@ -80,7 +88,8 @@ mod defs {
                              ncs: gpiob.pb0,
                              usart: device.USART2,
                              usart_pins: (gpioa.pa2, gpioa.pa15),
-                             tx_ch: dma_channels.7 }
+                             tx_ch: dma_channels.7,
+                             extih: device.EXTI.EXTI0 }
     }
 }
 

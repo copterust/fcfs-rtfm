@@ -38,7 +38,8 @@ use telemetry::Telemetry;
 
 #[app(device = hal::pac)]
 const APP: () = {
-    static mut EXTI0H: hal::exti::Exti<hal::exti::EXTI0> = ();
+    // ext should be configured in boards
+    static mut EXTIH: hal::exti::Exti<ExtiNum> = ();
     static mut AHRS: ahrs::AHRS<Dev, chrono::T> = ();
     static mut LOG: logging::T = ();
     static mut DEBUG_PIN: DebugPinT = ();
@@ -54,6 +55,7 @@ const APP: () = {
         let mut rcc = device.RCC.constrain();
         let gpioa = device.GPIOA.split(&mut rcc.ahb);
         let gpiob = device.GPIOB.split(&mut rcc.ahb);
+        let gpioc = device.GPIOC.split(&mut rcc.ahb);
         let mut syscfg = device.SYSCFG.constrain(&mut rcc.apb2);
         let mut exti = device.EXTI.constrain();
         let mut flash = device.FLASH.constrain();
@@ -64,30 +66,39 @@ const APP: () = {
                         .freeze(&mut flash.acr);
         info!(log, "clocks done");
 
-        let conf = boards::configure(InputDevice { SPI1: device.SPI1,
-                                                   SPI2: device.SPI2,
-                                                   USART1: device.USART1,
-                                                   USART2: device.USART2,
-                                                   DMA1: device.DMA1 },
-                                     gpioa,
-                                     gpiob,
-                                     &mut rcc.ahb);
+        let mut conf =
+            boards::configure(InputDevice { SPI1: device.SPI1,
+                                            SPI2: device.SPI2,
+                                            USART1: device.USART1,
+                                            USART2: device.USART2,
+                                            DMA1: device.DMA1,
+                                            EXTI: exti },
+                              gpioa,
+                              gpiob,
+                              gpioc,
+                              &mut rcc.ahb);
         let debug_pin =
             conf.debug_pin.output().output_speed(HighSpeed).pull_type(PullDown);
         let mpu_interrupt_pin = conf.mpu_interrupt_pin.pull_type(PullDown);
-        exti.EXTI0.bind(mpu_interrupt_pin, &mut syscfg);
+        // TODO: bind should return handle for us to unpend; right now they are
+        //       kinda unconnected %(
+        conf.extih.bind(mpu_interrupt_pin, &mut syscfg);
 
         // SPI1
         let spi = conf.spi.spi(conf.spi_pins, mpu9250::MODE, 1.mhz(), clocks);
         info!(log, "spi ok");
 
         // This is weird, but gives accurate delays with release
-        let mut delay = AsmDelay::new(42600.khz());
+        let mut delay = AsmDelay::new(clocks.sysclk());
         info!(log, "delay ok");
         // MPU
         let ncs_pin = conf.ncs.output().push_pull().output_speed(HighSpeed);
         // 8Hz
         let gyro_rate = mpu9250::GyroTempDataRate::DlpfConf(mpu9250::Dlpf::_2);
+
+        let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
+        let (tx, _rx) = usart.split();
+
         let mut mpu9250 =
             Mpu9250::imu_with_reinit(spi,
                                      ncs_pin,
@@ -107,19 +118,17 @@ const APP: () = {
 
         mpu9250.enable_interrupts(mpu9250::InterruptEnable::RAW_RDY_EN)
                .unwrap();
-        info!(log, "enabled; ");
+        info!(log, "int enabled; ");
 
         info!(log, "now: {:?}", mpu9250.get_enabled_interrupts());
         let mut chrono = chrono::rtfm_stopwatch(clocks.sysclk());
         let mut ahrs = ahrs::AHRS::create(mpu9250, &mut delay, chrono);
         info!(log, "ahrs ok");
-        let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
-        let (tx, _rx) = usart.split();
 
         info!(log, "ready");
         ahrs.setup_time();
 
-        init::LateResources { EXTI0H: exti.EXTI0,
+        init::LateResources { EXTIH: conf.extih,
                               AHRS: ahrs,
                               TELE: Some(telemetry::create(conf.tx_ch, tx)),
                               LOG: log,
@@ -127,7 +136,7 @@ const APP: () = {
     }
 
     #[interrupt(binds=EXTI0,
-                resources = [EXTI0H, AHRS, LOG, DEBUG_PIN, TELE])]
+                resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE])]
     fn handle_mpu(ctx: handle_mpu::Context) {
         let _ = ctx.resources.DEBUG_PIN.set_high();
         let mut ahrs = ctx.resources.AHRS;
@@ -153,6 +162,6 @@ const APP: () = {
         };
 
         let _ = ctx.resources.DEBUG_PIN.set_low();
-        ctx.resources.EXTI0H.unpend();
+        ctx.resources.EXTIH.unpend();
     }
 };
