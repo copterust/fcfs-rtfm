@@ -47,10 +47,6 @@ mod defs {
     type NT = NcsPinDef<Input>;
 
     pub type SpiT = hal::pac::SPI1;
-    pub type SCLPin<B> = gpio::PB3<PullNone, B>;
-    pub type MISOPin<B> = gpio::PB4<PullNone, B>;
-    pub type MOSIPin<B> = gpio::PB5<PullNone, B>;
-    pub type SpiInputPins = (SCLPin<Input>, MISOPin<Input>, MOSIPin<Input>);
     pub type USART = hal::pac::USART2;
     pub type UsartPins =
         (gpio::PA14<PullNone, Input>, gpio::PA15<PullNone, Input>);
@@ -104,10 +100,6 @@ mod defs {
     type NT = NcsPinDef<Input>;
 
     pub type SpiT = hal::pac::SPI1;
-    pub type SCLPin<B> = gpio::PB3<PullNone, B>;
-    pub type MISOPin<B> = gpio::PB4<PullNone, B>;
-    pub type MOSIPin<B> = gpio::PB5<PullNone, B>;
-    pub type SpiInputPins = (SCLPin<Input>, MISOPin<Input>, MOSIPin<Input>);
     pub type USART = hal::pac::USART2;
     pub type UsartPins =
         (gpio::PA2<PullNone, Input>, gpio::PA15<PullNone, Input>);
@@ -148,6 +140,11 @@ mod defs {
 }
 
 pub use defs::*;
+
+pub type SCLPin<B> = gpio::PB3<PullNone, B>;
+pub type MISOPin<B> = gpio::PB4<PullNone, B>;
+pub type MOSIPin<B> = gpio::PB5<PullNone, B>;
+pub type SpiInputPins = (SCLPin<Input>, MISOPin<Input>, MOSIPin<Input>);
 
 pub type SpiPins = (SCLPin<AltFn<AF5, PushPull, HighSpeed>>,
                     MISOPin<AltFn<AF5, PushPull, HighSpeed>>,
