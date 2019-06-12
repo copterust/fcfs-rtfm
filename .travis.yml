@@ -9,7 +9,8 @@ install:
   - rustup target add thumbv7em-none-eabihf
 
 script:
-  - make release=1
+  - make release=1 level=info telemetry=words log=semihosting configuration=dev
+  - make release=1 level=debug telemetry=bytes log=itm configuration=drone
 
 cache: cargo
 before_cache:
