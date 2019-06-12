@@ -135,33 +135,49 @@ const APP: () = {
                               DEBUG_PIN: debug_pin }
     }
 
+    #[interrupt(binds=EXTI15_10,
+                resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE])]
+    fn handle_mpu_drone(ctx: handle_mpu_drone::Context) {
+        #[cfg(configuration = "configuration_drone")]
+        handle_mpu(ctx);
+    }
+
     #[interrupt(binds=EXTI0,
                 resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE])]
-    fn handle_mpu(ctx: handle_mpu::Context) {
-        let _ = ctx.resources.DEBUG_PIN.set_high();
-        let mut ahrs = ctx.resources.AHRS;
-        let mut log = ctx.resources.LOG;
-        let mut maybe_tele = ctx.resources.TELE.take();
-
-        match ahrs.estimate() {
-            Ok(result) => {
-                // resources.TELE should always be Some, but for
-                // future proof, let's be safe
-                if let Some(tele) = maybe_tele {
-                    let new_tele = tele.send(&result);
-                    *ctx.resources.TELE = Some(new_tele);
-                }
-
-                debugfloats!(log,
-                             ":",
-                             result.ypr.yaw,
-                             result.ypr.pitch,
-                             result.ypr.roll);
-            },
-            Err(_e) => error!(log, "err"),
-        };
-
-        let _ = ctx.resources.DEBUG_PIN.set_low();
-        ctx.resources.EXTIH.unpend();
+    fn handle_mpu_dev(ctx: handle_mpu_dev::Context) {
+        #[cfg(configuration = "configuration_dev")]
+        handle_mpu(ctx);
     }
 };
+
+#[cfg(configuration = "configuration_drone")]
+type CtxType<'a> = handle_mpu_drone::Context<'a>;
+#[cfg(configuration = "configuration_dev")]
+type CtxType<'a> = handle_mpu_dev::Context<'a>;
+fn handle_mpu(mut ctx: CtxType) {
+    let _ = ctx.resources.DEBUG_PIN.set_high();
+    let mut ahrs = ctx.resources.AHRS;
+    let mut log = ctx.resources.LOG;
+    let mut maybe_tele = ctx.resources.TELE.take();
+
+    match ahrs.estimate() {
+        Ok(result) => {
+            // resources.TELE should always be Some, but for
+            // future proof, let's be safe
+            if let Some(tele) = maybe_tele {
+                let new_tele = tele.send(&result);
+                *ctx.resources.TELE = Some(new_tele);
+            }
+
+            debugfloats!(log,
+                         ":",
+                         result.ypr.yaw,
+                         result.ypr.pitch,
+                         result.ypr.roll);
+        },
+        Err(_e) => error!(log, "err"),
+    };
+
+    let _ = ctx.resources.DEBUG_PIN.set_low();
+    ctx.resources.EXTIH.unpend();
+}
