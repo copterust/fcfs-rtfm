@@ -19,6 +19,9 @@ $(BIN): build
 build:
 	cargo -v build $(RELEASE_FLAG) --target $(TARGET) --bin $(NAME) --no-default-features $(FEATURES)
 
+check:
+	cargo -v check $(RELEASE_FLAG) --target $(TARGET) --bin $(NAME) --no-default-features $(FEATURES)
+
 load: build
 	sh -c "openocd & arm-none-eabi-gdb -q $(BIN) & wait"
 
