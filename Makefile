@@ -16,7 +16,10 @@ FEATURES := "--features=log_$(log),level_$(level),telemetry_$(telemetry),configu
 
 $(BIN): build
 
-build:
+memory:
+	cp memory.$(configuration) memory.x
+
+build: memory
 	cargo -v build $(RELEASE_FLAG) --target $(TARGET) --bin $(NAME) --no-default-features $(FEATURES)
 
 check:
@@ -29,6 +32,7 @@ gdb: build
 	arm-none-eabi-gdb -q $(BIN)
 
 clean:
+	rm memory.x
 	cargo -v clean
 
 bloat:
@@ -38,6 +42,6 @@ details:
 	cargo -v bloat $(RELEASE_FLAG) -n 100
 
 boad: build
-	bobbin -v load $(RELEASE_FLAG) --target $(TARGET) --bin $(NAME)
+	bobbin -v load $(RELEASE_FLAG) --target $(TARGET) --bin $(NAME) $(FEATURES)
 
 .PHONY: build

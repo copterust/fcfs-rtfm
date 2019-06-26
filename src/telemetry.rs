@@ -89,7 +89,8 @@ mod dmatelemetry {
     {
         type Arg = super::AhrsResult;
 
-        fn send(self, arg: &Self::Arg) -> Self {
+        fn send(self, arg: &Self::Arg) -> Self
+        {
             let ns = match self.state {
                 TransferState::Ready((mut buffer, ch, tx)) => {
                     TW::write_arg(&mut buffer, &arg);

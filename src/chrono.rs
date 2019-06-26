@@ -5,7 +5,7 @@ use rtfm::Instant;
 pub existential type T: Chrono;
 
 pub fn rtfm_stopwatch<F: Into<Hertz<u32>>>(f: F) -> T {
-    RtfmClock::new(CyclesToTime::new(f))
+    DwtClock::new(CyclesToTime::new(f))
 }
 
 pub trait Chrono: Sized {
@@ -34,6 +34,8 @@ pub struct RtfmClock {
 
 impl RtfmClock {
     pub fn new(cc: CyclesToTime) -> Self {
+        // let dwt =  unsafe { &(*cortex_m::peripheral::DWT::ptr()) };
+        // let now:u32 = dwt.cyccnt.read();
         RtfmClock { cc, last: Instant::now() }
     }
 }
@@ -48,7 +50,36 @@ impl Chrono for RtfmClock {
     fn split_time_ms(&mut self) -> f32 {
         let now = Instant::now();
         let duration = now.duration_since(self.last);
+        let duration = now - self.last;
         self.last = now;
         self.cc.to_ms(duration.as_cycles())
+    }
+}
+
+pub struct DwtClock {
+    cc: CyclesToTime,
+    last: u32,
+}
+
+impl DwtClock {
+    pub fn new(cc: CyclesToTime) -> Self {
+        let dwt =  unsafe { &(*cortex_m::peripheral::DWT::ptr()) };
+        DwtClock { cc, last: dwt.cyccnt.read() }
+    }
+}
+
+impl Chrono for DwtClock {
+    type Time = u32;
+
+    fn last(&self) -> Self::Time {
+        self.last
+    }
+
+    fn split_time_ms(&mut self) -> f32 {
+        let dwt =  unsafe { &(*cortex_m::peripheral::DWT::ptr()) };
+        let now:u32 = dwt.cyccnt.read();
+        let duration = now - self.last;
+        self.last = now;
+        self.cc.to_ms(duration)
     }
 }

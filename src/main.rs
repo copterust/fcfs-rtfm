@@ -63,8 +63,12 @@ const APP: () = {
                         .sysclk(64.mhz())
                         .pclk1(32.mhz())
                         .pclk2(32.mhz())
-                        .freeze(&mut flash.acr);
+            .freeze(&mut flash.acr);
+
         info!(log, "clocks done");
+        // This is weird, but gives accurate delays with release
+        let mut delay = AsmDelay::new(clocks.sysclk());
+        info!(log, "delay ok");
 
         let mut conf =
             boards::configure(InputDevice { SPI1: device.SPI1,
@@ -78,7 +82,11 @@ const APP: () = {
                               gpioc,
                               &mut rcc.ahb);
         let debug_pin =
-            conf.debug_pin.output().output_speed(HighSpeed).pull_type(PullDown);
+            conf.debug_pin.output().output_speed(HighSpeed).push_pull().pull_type(PullNone);
+
+        let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
+        let (tx, _rx) = usart.split();
+
         let mpu_interrupt_pin = conf.mpu_interrupt_pin.pull_type(PullDown);
         // TODO: bind should return handle for us to unpend; right now they are
         //       kinda unconnected %(
@@ -88,16 +96,10 @@ const APP: () = {
         let spi = conf.spi.spi(conf.spi_pins, mpu9250::MODE, 1.mhz(), clocks);
         info!(log, "spi ok");
 
-        // This is weird, but gives accurate delays with release
-        let mut delay = AsmDelay::new(clocks.sysclk());
-        info!(log, "delay ok");
         // MPU
         let ncs_pin = conf.ncs.output().push_pull().output_speed(HighSpeed);
         // 8Hz
         let gyro_rate = mpu9250::GyroTempDataRate::DlpfConf(mpu9250::Dlpf::_2);
-
-        let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
-        let (tx, _rx) = usart.split();
 
         let mut mpu9250 =
             Mpu9250::imu_with_reinit(spi,
@@ -175,7 +177,9 @@ fn handle_mpu(mut ctx: CtxType) {
                          result.ypr.pitch,
                          result.ypr.roll);
         },
-        Err(_e) => error!(log, "err"),
+        Err(_e) => {
+            error!(log, "err");
+        },
     };
 
     let _ = ctx.resources.DEBUG_PIN.set_low();

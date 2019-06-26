@@ -37,7 +37,7 @@ pub struct InputDevice {
 mod defs {
     use super::*;
 
-    pub type DebugPinDef<A, B> = gpio::PA11<A, B>;
+    pub type DebugPinDef<A, B> = gpio::PC15<A, B>;
     type DT = DebugPinDef<PullNone, Input>;
 
     pub type MpuIntPinDef<A, B> = gpio::PC13<A, B>;
@@ -74,7 +74,7 @@ mod defs {
         let sda_sdi_mosi = gpiob.pb5;
         let dma_channels = device.DMA1.split(ahb);
 
-        BoardConfiguration { debug_pin: gpioa.pa11,
+        BoardConfiguration { debug_pin: gpioc.pc15,
                              mpu_interrupt_pin: gpioc.pc13,
                              spi: device.SPI1,
                              spi_pins: (scl_sck, ad0_sdo_miso, sda_sdi_mosi),
@@ -155,7 +155,7 @@ pub type NcsPinT = NcsPinDef<Output<PushPull, HighSpeed>>;
 pub type Dev = mpu9250::SpiDevice<SPI, NcsPinT>;
 pub type MPU9250 = mpu9250::Mpu9250<Dev, mpu9250::Imu>;
 
-pub type DebugPinT = DebugPinDef<PullDown, Output<PushPull, HighSpeed>>;
+pub type DebugPinT = DebugPinDef<PullNone, Output<PushPull, HighSpeed>>;
 
 pub type QuadMotors = (gpio::PA0<PullNone, gpio::Input>,
                        gpio::PA1<PullNone, gpio::Input>,

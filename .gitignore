@@ -4,3 +4,4 @@
 .gdb_history
 target/
 env/
+memory.x
