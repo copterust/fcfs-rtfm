@@ -86,7 +86,7 @@ const APP: () = {
             conf.debug_pin.output().output_speed(HighSpeed).push_pull().pull_type(PullNone);
 
         let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
-        let (tx, _rx) = usart.split();
+        let (mut tx, mut rx) = usart.split();
 
         let mpu_interrupt_pin = conf.mpu_interrupt_pin.pull_type(PullDown);
         // TODO: bind should return handle for us to unpend; right now they are
@@ -119,12 +119,10 @@ const APP: () = {
                                      }).unwrap();
         info!(log, "mpu ok");
 
-        let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
-        let (tx, mut rx) = usart.split();
-
         let mut readings = [[0.0f32; 3]; 6];
         for pos in 0..6 {
             info!(log, "set position {}", pos);
+            writeln!(tx, "set position {}", pos);
 
             nb::block!(rx.read());
 
@@ -140,6 +138,7 @@ const APP: () = {
         }
 
         info!(log, "calibrating");
+        writeln!(tx, "calibrating");
 
         let mut won = won2010::Cal::new(9.81, 0.1);
         let mut adj = None;
@@ -149,6 +148,7 @@ const APP: () = {
                 break;
             }
             info!(log, "did not converge");
+            writeln!(tx, "did not converge");
             panic!("dead");
         }
         let adj = adj.unwrap();
@@ -161,6 +161,7 @@ const APP: () = {
                 adj[2].estimate(r[2]),
             ];
             info!(log, "- {}: {} {} {} == {}", pos, a[0], a[1], a[2], a[0]*a[0]+a[1]*a[1]+a[2]*a[2]);
+            writeln!(tx, "- {}: {} {} {} == {}", pos, a[0], a[1], a[2], a[0]*a[0]+a[1]*a[1]+a[2]*a[2]);
         }
 
         mpu9250.enable_interrupts(mpu9250::InterruptEnable::RAW_RDY_EN)
