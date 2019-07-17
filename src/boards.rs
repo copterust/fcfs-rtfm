@@ -1,7 +1,6 @@
 pub use crate::prelude::*;
 
 pub struct BoardConfiguration<DPT,
- MIPT,
  SPI,
  SpiPins,
  NPT,
@@ -12,7 +11,6 @@ pub struct BoardConfiguration<DPT,
     where ExtiNum: hal::exti::ExternalInterrupt
 {
     pub debug_pin: DPT,
-    pub mpu_interrupt_pin: MIPT,
     pub spi: SPI,
     pub spi_pins: SpiPins,
     pub ncs: NPT,
@@ -22,26 +20,27 @@ pub struct BoardConfiguration<DPT,
     pub extih: hal::exti::Exti<ExtiNum>,
 }
 
-// XXX: ugly, but device.FLASH.constrain() prevents us from using
-//      hal::pac::Peripherals in `configure`.
-pub struct InputDevice {
-    pub SPI1: hal::pac::SPI1,
-    pub SPI2: hal::pac::SPI2,
-    pub USART1: hal::pac::USART1,
-    pub USART2: hal::pac::USART2,
-    pub DMA1: hal::pac::DMA1,
-    pub EXTI: hal::exti::ExternalInterrupts,
+pub struct Peripherals {
+    pub spi1: hal::pac::SPI1,
+    pub spi2: hal::pac::SPI2,
+    pub usart1: hal::pac::USART1,
+    pub usart2: hal::pac::USART2,
+    pub dma_channels: hal::dma::dma1::Channels,
+    pub exti: hal::exti::ExternalInterrupts,
+    pub clocks: hal::rcc::Clocks,
+    pub gpioa: hal::gpio::Gpioa,
+    pub gpiob: hal::gpio::Gpiob,
+    pub gpioc: hal::gpio::Gpioc,
+    pub syscfg: hal::syscfg::Syscfg,
 }
 
 #[cfg(configuration = "configuration_drone")]
 mod defs {
+    pub use super::Peripherals;
     use super::*;
 
     pub type DebugPinDef<A, B> = gpio::PC15<A, B>;
     type DT = DebugPinDef<PullNone, Input>;
-
-    pub type MpuIntPinDef<A, B> = gpio::PC13<A, B>;
-    type MT = MpuIntPinDef<PullNone, Input>;
 
     pub type NcsPinDef<B> = gpio::PB9<PullNone, B>;
     type NT = NcsPinDef<Input>;
@@ -55,7 +54,6 @@ mod defs {
     pub type ExtiNum = hal::exti::EXTI13;
 
     type Res = BoardConfiguration<DT,
-                                  MT,
                                   SpiT,
                                   SpiInputPins,
                                   NT,
@@ -63,26 +61,25 @@ mod defs {
                                   UsartPins,
                                   TxCh,
                                   ExtiNum>;
-    pub fn configure(device: InputDevice,
-                     gpioa: gpio::Gpioa,
-                     gpiob: gpio::Gpiob,
-                     gpioc: gpio::Gpioc,
-                     ahb: &mut hal::rcc::AHB)
-                     -> Res {
-        let scl_sck = gpiob.pb3;
-        let ad0_sdo_miso = gpiob.pb4;
-        let sda_sdi_mosi = gpiob.pb5;
-        let dma_channels = device.DMA1.split(ahb);
+    pub fn configure(mut device: Peripherals) -> Res {
+        let scl_sck = device.gpiob.pb3;
+        let ad0_sdo_miso = device.gpiob.pb4;
+        let sda_sdi_mosi = device.gpiob.pb5;
 
-        BoardConfiguration { debug_pin: gpioc.pc15,
-                             mpu_interrupt_pin: gpioc.pc13,
-                             spi: device.SPI1,
+        let mpu_interrupt_pin = device.gpioc.pc13.pull_type(PullDown);
+        //       kinda unconnected %(
+        let mut extih = device.exti.EXTI13;
+        extih.bind(mpu_interrupt_pin, &mut device.syscfg);
+
+        BoardConfiguration { debug_pin: device.gpioc.pc15,
+                             spi: device.spi1,
                              spi_pins: (scl_sck, ad0_sdo_miso, sda_sdi_mosi),
-                             ncs: gpiob.pb9,
-                             usart: device.USART2,
-                             usart_pins: (gpioa.pa14, gpioa.pa15),
-                             tx_ch: dma_channels.7,
-                             extih: device.EXTI.EXTI13 }
+                             ncs: device.gpiob.pb9,
+                             usart: device.usart2,
+                             usart_pins: (device.gpioa.pa14,
+                                          device.gpioa.pa15),
+                             tx_ch: device.dma_channels.7,
+                             extih }
     }
 }
 
@@ -92,9 +89,6 @@ mod defs {
 
     pub type DebugPinDef<A, B> = gpio::PA11<A, B>;
     type DT = DebugPinDef<PullNone, Input>;
-
-    pub type MpuIntPinDef<A, B> = gpio::PA0<A, B>;
-    type MT = MpuIntPinDef<PullNone, Input>;
 
     pub type NcsPinDef<B> = gpio::PB0<PullNone, B>;
     type NT = NcsPinDef<Input>;
@@ -108,7 +102,6 @@ mod defs {
     pub type ExtiNum = hal::exti::EXTI0;
 
     type Res = BoardConfiguration<DT,
-                                  MT,
                                   SpiT,
                                   SpiInputPins,
                                   NT,
@@ -116,26 +109,26 @@ mod defs {
                                   UsartPins,
                                   TxCh,
                                   ExtiNum>;
-    pub fn configure(device: InputDevice,
-                     gpioa: gpio::Gpioa,
-                     gpiob: gpio::Gpiob,
-                     gpioc: gpio::Gpioc,
-                     ahb: &mut hal::rcc::AHB)
-                     -> Res {
-        let scl_sck = gpiob.pb3;
-        let ad0_sdo_miso = gpiob.pb4;
-        let sda_sdi_mosi = gpiob.pb5;
-        let dma_channels = device.DMA1.split(ahb);
+    pub fn configure(mut device: Peripherals) -> Res {
+        let scl_sck = device.gpiob.pb3;
+        let ad0_sdo_miso = device.gpiob.pb4;
+        let sda_sdi_mosi = device.gpiob.pb5;
 
-        BoardConfiguration { debug_pin: gpioa.pa11,
-                             mpu_interrupt_pin: gpioa.pa0,
-                             spi: device.SPI1,
+        let mpu_interrupt_pin = device.gpioa.pa0.pull_type(PullDown);
+        // TODO: bind should return handle for us to unpend; right now they are
+        //       kinda unconnected %(
+        let mut extih = device.exti.EXTI0;
+        extih.bind(mpu_interrupt_pin, &mut device.syscfg);
+
+        BoardConfiguration { debug_pin: device.gpioa.pa11,
+                             spi: device.spi1,
                              spi_pins: (scl_sck, ad0_sdo_miso, sda_sdi_mosi),
-                             ncs: gpiob.pb0,
-                             usart: device.USART2,
-                             usart_pins: (gpioa.pa2, gpioa.pa15),
-                             tx_ch: dma_channels.7,
-                             extih: device.EXTI.EXTI0 }
+                             ncs: device.gpiob.pb0,
+                             usart: device.usart2,
+                             usart_pins: (device.gpioa.pa2,
+                                          device.gpioa.pa15),
+                             tx_ch: device.dma_channels.7,
+                             extih }
     }
 }
 
@@ -166,3 +159,57 @@ pub type QuadMotorsTim = hal::pac::TIM2;
 pub type Add2MotorsTim = hal::pac::TIM3;
 pub type Add2Motors =
     (gpio::PA6<PullNone, gpio::Input>, gpio::PA7<PullNone, gpio::Input>);
+
+pub mod mydevice {
+    pub use super::Peripherals;
+    use super::*;
+
+    pub use hal::pac::NVIC_PRIO_BITS;
+
+    impl Peripherals {
+        pub fn steal() -> Self {
+            let device = unsafe { hal::pac::Peripherals::steal() };
+            let mut rcc = device.RCC.constrain();
+            let gpioa = device.GPIOA.split(&mut rcc.ahb);
+            let gpiob = device.GPIOB.split(&mut rcc.ahb);
+            let gpioc = device.GPIOC.split(&mut rcc.ahb);
+            let mut syscfg = device.SYSCFG.constrain(&mut rcc.apb2);
+            let mut exti = device.EXTI.constrain();
+            let dma_channels = device.DMA1.split(&mut rcc.ahb);
+            let mut flash = device.FLASH.constrain();
+            let clocks = rcc.cfgr
+                            .sysclk(64.mhz())
+                            .pclk1(32.mhz())
+                            .pclk2(32.mhz())
+                            .freeze(&mut flash.acr);
+
+            Peripherals { spi1: device.SPI1,
+                          spi2: device.SPI2,
+                          usart1: device.USART1,
+                          usart2: device.USART2,
+                          dma_channels,
+                          exti,
+                          gpioa,
+                          gpiob,
+                          gpioc,
+                          syscfg,
+                          clocks }
+        }
+    }
+
+    #[repr(u8)]
+    #[derive(Clone, Copy)]
+    #[allow(non_camel_case_types)]
+    pub enum Interrupt {
+        #[cfg(configuration = "configuration_drone")]
+        MPU_EXT_INT = hal::pac::Interrupt::EXTI15_10 as u8,
+        #[cfg(configuration = "configuration_dev")]
+        MPU_EXT_INT = hal::pac::Interrupt::EXTI0 as u8,
+    }
+
+    unsafe impl rtfm::export::interrupt::Nr for Interrupt {
+        fn nr(&self) -> u8 {
+            *self as u8
+        }
+    }
+}

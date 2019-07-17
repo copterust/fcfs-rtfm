@@ -36,7 +36,7 @@ use boards::*;
 use prelude::*;
 use telemetry::Telemetry;
 
-#[app(device = hal::pac)]
+#[app(device = crate::boards::mydevice)]
 const APP: () = {
     // ext should be configured in boards
     static mut EXTIH: hal::exti::Exti<ExtiNum> = ();
@@ -48,49 +48,26 @@ const APP: () = {
 
     #[init]
     fn init(ctx: init::Context) -> init::LateResources {
-        let device: hal::pac::Peripherals = ctx.device;
+        let device = ctx.device;
+        let clocks = device.clocks;
         let mut log = logging::create(ctx.core.ITM).unwrap();
         info!(log, "init!");
-
-        let mut rcc = device.RCC.constrain();
-        let gpioa = device.GPIOA.split(&mut rcc.ahb);
-        let gpiob = device.GPIOB.split(&mut rcc.ahb);
-        let gpioc = device.GPIOC.split(&mut rcc.ahb);
-        let mut syscfg = device.SYSCFG.constrain(&mut rcc.apb2);
-        let mut exti = device.EXTI.constrain();
-        let mut flash = device.FLASH.constrain();
-        let clocks = rcc.cfgr
-                        .sysclk(64.mhz())
-                        .pclk1(32.mhz())
-                        .pclk2(32.mhz())
-            .freeze(&mut flash.acr);
 
         info!(log, "clocks done");
         // This is weird, but gives accurate delays with release
         let mut delay = AsmDelay::new(clocks.sysclk());
         info!(log, "delay ok");
 
-        let mut conf =
-            boards::configure(InputDevice { SPI1: device.SPI1,
-                                            SPI2: device.SPI2,
-                                            USART1: device.USART1,
-                                            USART2: device.USART2,
-                                            DMA1: device.DMA1,
-                                            EXTI: exti },
-                              gpioa,
-                              gpiob,
-                              gpioc,
-                              &mut rcc.ahb);
-        let debug_pin =
-            conf.debug_pin.output().output_speed(HighSpeed).push_pull().pull_type(PullNone);
+        let mut conf = boards::configure(device);
+
+        let debug_pin = conf.debug_pin
+                            .output()
+                            .output_speed(HighSpeed)
+                            .push_pull()
+                            .pull_type(PullNone);
 
         let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
         let (tx, _rx) = usart.split();
-
-        let mpu_interrupt_pin = conf.mpu_interrupt_pin.pull_type(PullDown);
-        // TODO: bind should return handle for us to unpend; right now they are
-        //       kinda unconnected %(
-        conf.extih.bind(mpu_interrupt_pin, &mut syscfg);
 
         // SPI1
         let spi = conf.spi.spi(conf.spi_pins, mpu9250::MODE, 1.mhz(), clocks);
@@ -101,21 +78,20 @@ const APP: () = {
         // 8Hz
         let gyro_rate = mpu9250::GyroTempDataRate::DlpfConf(mpu9250::Dlpf::_2);
 
-        let mut mpu9250 =
-            Mpu9250::imu_with_reinit(spi,
-                                     ncs_pin,
-                                     &mut delay,
-                                     &mut MpuConfig::imu().gyro_temp_data_rate(gyro_rate).sample_rate_divisor(3),
-                                     |spi, ncs| {
-                                         let (dev_spi, (scl, miso, mosi)) =
-                                             spi.free();
-                                         let new_spi =
-                                             dev_spi.spi((scl, miso, mosi),
-                                                         mpu9250::MODE,
-                                                         20.mhz(),
-                                                         clocks);
-                                         Some((new_spi, ncs))
-                                     }).unwrap();
+        let mut mpu9250 = Mpu9250::imu_with_reinit(
+            spi,
+            ncs_pin,
+            &mut delay,
+            &mut MpuConfig::imu()
+                .gyro_temp_data_rate(gyro_rate)
+                .sample_rate_divisor(3),
+            |spi, ncs| {
+                let (dev_spi, (scl, miso, mosi)) = spi.free();
+                let new_spi = dev_spi.spi((scl, miso, mosi), mpu9250::MODE, 20.mhz(), clocks);
+                Some((new_spi, ncs))
+            },
+        )
+        .unwrap();
         info!(log, "mpu ok");
 
         mpu9250.enable_interrupts(mpu9250::InterruptEnable::RAW_RDY_EN)
@@ -137,51 +113,35 @@ const APP: () = {
                               DEBUG_PIN: debug_pin }
     }
 
-    #[interrupt(binds=EXTI15_10,
-                resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE])]
-    fn handle_mpu_drone(ctx: handle_mpu_drone::Context) {
-        #[cfg(configuration = "configuration_drone")]
-        handle_mpu(ctx);
-    }
-
-    #[interrupt(binds=EXTI0,
+    #[interrupt(binds=MPU_EXT_INT,
                 resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE])]
     fn handle_mpu_dev(ctx: handle_mpu_dev::Context) {
-        #[cfg(configuration = "configuration_dev")]
-        handle_mpu(ctx);
+        let _ = ctx.resources.DEBUG_PIN.set_high();
+        let mut ahrs = ctx.resources.AHRS;
+        let mut log = ctx.resources.LOG;
+        let mut maybe_tele = ctx.resources.TELE.take();
+
+        match ahrs.estimate() {
+            Ok(result) => {
+                // resources.TELE should always be Some, but for
+                // future proof, let's be safe
+                if let Some(tele) = maybe_tele {
+                    let new_tele = tele.send(&result);
+                    *ctx.resources.TELE = Some(new_tele);
+                }
+
+                debugfloats!(log,
+                             ":",
+                             result.ypr.yaw,
+                             result.ypr.pitch,
+                             result.ypr.roll);
+            },
+            Err(_e) => {
+                error!(log, "err");
+            },
+        };
+
+        let _ = ctx.resources.DEBUG_PIN.set_low();
+        ctx.resources.EXTIH.unpend();
     }
 };
-
-#[cfg(configuration = "configuration_drone")]
-type CtxType<'a> = handle_mpu_drone::Context<'a>;
-#[cfg(configuration = "configuration_dev")]
-type CtxType<'a> = handle_mpu_dev::Context<'a>;
-fn handle_mpu(mut ctx: CtxType) {
-    let _ = ctx.resources.DEBUG_PIN.set_high();
-    let mut ahrs = ctx.resources.AHRS;
-    let mut log = ctx.resources.LOG;
-    let mut maybe_tele = ctx.resources.TELE.take();
-
-    match ahrs.estimate() {
-        Ok(result) => {
-            // resources.TELE should always be Some, but for
-            // future proof, let's be safe
-            if let Some(tele) = maybe_tele {
-                let new_tele = tele.send(&result);
-                *ctx.resources.TELE = Some(new_tele);
-            }
-
-            debugfloats!(log,
-                         ":",
-                         result.ypr.yaw,
-                         result.ypr.pitch,
-                         result.ypr.roll);
-        },
-        Err(_e) => {
-            error!(log, "err");
-        },
-    };
-
-    let _ = ctx.resources.DEBUG_PIN.set_low();
-    ctx.resources.EXTIH.unpend();
-}
