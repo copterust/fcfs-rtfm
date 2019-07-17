@@ -40,7 +40,7 @@ version = "0.2.2"
 package = "embedded-hal"
 
 [dependencies.hal]
-version = "0.20"
+version = "0.22"
 # path = "../alt-stm32f30x-hal"
 package = "alt-stm32f30x-hal"
 features = ["rt", "stm32f303"]

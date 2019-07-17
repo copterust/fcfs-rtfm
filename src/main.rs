@@ -39,7 +39,7 @@ use telemetry::Telemetry;
 #[app(device = crate::boards::mydevice)]
 const APP: () = {
     // ext should be configured in boards
-    static mut EXTIH: hal::exti::Exti<ExtiNum> = ();
+    static mut EXTIH: hal::exti::BoundInterrupt<MpuIntPin, ExtiNum> = ();
     static mut AHRS: ahrs::AHRS<Dev, chrono::T> = ();
     static mut LOG: logging::T = ();
     static mut DEBUG_PIN: DebugPinT = ();
