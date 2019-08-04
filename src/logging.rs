@@ -6,7 +6,7 @@ use cortex_m_log::printer::semihosting::Semihosting;
 use cortex_m_log::printer::Printer;
 use ryu;
 
-pub existential type T: Printer;
+pub type T = impl Printer;
 
 #[allow(unused)]
 pub fn create(itm: cortex_m::peripheral::ITM) -> Result<T, ()> {

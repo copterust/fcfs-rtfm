@@ -6,7 +6,7 @@ pub trait Telemetry {
     fn send(self, arg: &Self::Arg) -> Self;
 }
 
-pub existential type T: Telemetry<Arg = AhrsResult>;
+pub type T = impl Telemetry<Arg = AhrsResult>;
 
 #[allow(unused)]
 pub fn create(ch: crate::boards::TxCh, tx: crate::boards::TxUsart) -> T {

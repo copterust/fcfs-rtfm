@@ -3,7 +3,7 @@ use nalgebra::{self, clamp};
 use crate::boards::*;
 use hal::timer;
 
-pub existential type T: MotorCtrl;
+pub type T = impl MotorCtrl;
 
 pub fn create<F>(quad_tim: QuadMotorsTim,
                  quad_pins: QuadMotors,

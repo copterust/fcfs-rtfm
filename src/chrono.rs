@@ -2,7 +2,7 @@ use asm_delay::CyclesToTime;
 use hal::time::*;
 use rtfm::Instant;
 
-pub existential type T: Chrono;
+pub type T = impl Chrono;
 
 pub fn rtfm_stopwatch<F: Into<Hertz<u32>>>(f: F) -> T {
     DwtClock::new(CyclesToTime::new(f))
