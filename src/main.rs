@@ -69,6 +69,10 @@ const APP: () = {
         info!(log, "clocks done");
         // This is weird, but gives accurate delays with release
         let mut delay = AsmDelay::new(clocks.sysclk());
+        delay.delay_ms(255u8);
+        delay.delay_ms(255u8);
+        delay.delay_ms(255u8);
+        delay.delay_ms(255u8);
         info!(log, "delay ok");
 
         let mut conf =
@@ -85,7 +89,7 @@ const APP: () = {
         let debug_pin =
             conf.debug_pin.output().output_speed(HighSpeed).push_pull().pull_type(PullNone);
 
-        let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
+        let mut usart = conf.usart.serial(conf.usart_pins, Bps(9600), clocks);
         let (mut tx, mut rx) = usart.split();
 
         let mpu_interrupt_pin = conf.mpu_interrupt_pin.pull_type(PullDown);
@@ -121,10 +125,19 @@ const APP: () = {
 
         let mut readings = [[0.0f32; 3]; 6];
         for pos in 0..6 {
-            info!(log, "set position {}", pos);
-            writeln!(tx, "set position {}", pos);
+            info!(log, "set position {} press n", pos);
+            writeln!(tx, "set position {} press n", pos);
 
-            nb::block!(rx.read());
+            loop {
+                let a = match nb::block!(rx.read()) {
+                    Ok(v) => v,
+                    Err(_) => { writeln!(tx, "lol"); continue; }
+                };
+                writeln!(tx, "{}", (a as char));
+                if a == b'n' {
+                    break;
+                }
+            }
 
             let mut r = mpu9250.accel().unwrap();
             for _ in 0..100 {
@@ -163,6 +176,11 @@ const APP: () = {
             info!(log, "- {}: {} {} {} == {}", pos, a[0], a[1], a[2], a[0]*a[0]+a[1]*a[1]+a[2]*a[2]);
             writeln!(tx, "- {}: {} {} {} == {}", pos, a[0], a[1], a[2], a[0]*a[0]+a[1]*a[1]+a[2]*a[2]);
         }
+
+        writeln!(tx, "------ FINAL ------");
+        writeln!(tx, "{} {}", adj[0].gain, adj[0].bias);
+        writeln!(tx, "{} {}", adj[1].gain, adj[1].bias);
+        writeln!(tx, "{} {}", adj[2].gain, adj[2].bias);
 
         mpu9250.enable_interrupts(mpu9250::InterruptEnable::RAW_RDY_EN)
                .unwrap();
@@ -207,7 +225,7 @@ fn handle_mpu(mut ctx: CtxType) {
     let mut ahrs = ctx.resources.AHRS;
     let mut log = ctx.resources.LOG;
     let mut maybe_tele = ctx.resources.TELE.take();
-
+/*
     match ahrs.estimate() {
         Ok(result) => {
             // resources.TELE should always be Some, but for
@@ -216,7 +234,6 @@ fn handle_mpu(mut ctx: CtxType) {
                 let new_tele = tele.send(&result);
                 *ctx.resources.TELE = Some(new_tele);
             }
-
             debugfloats!(log,
                          ":",
                          result.ypr.yaw,
@@ -227,6 +244,7 @@ fn handle_mpu(mut ctx: CtxType) {
             error!(log, "err");
         },
     };
+    */
 
     let _ = ctx.resources.DEBUG_PIN.set_low();
     ctx.resources.EXTIH.unpend();
