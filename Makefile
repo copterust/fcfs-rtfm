@@ -41,7 +41,4 @@ bloat:
 details:
 	cargo -v bloat $(RELEASE_FLAG) -n 100
 
-boad: build
-	bobbin -v load $(RELEASE_FLAG) --target $(TARGET) --bin $(NAME) $(FEATURES)
-
 .PHONY: build
