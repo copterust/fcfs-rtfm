@@ -50,7 +50,7 @@ mod dmatelemetry {
     type TxReady = (&'static mut TxBuffer, TxCh, TxUsart);
     type TxBusy = dma::Transfer<dma::R, &'static mut TxBuffer, TxCh, TxUsart>;
 
-    static mut BUFFER: TxBuffer = Vec::new();
+    static mut BUFFER: TxBuffer = Vec(heapless::i::Vec::new());
 
     #[derive(Debug, Clone, Copy)]
     enum TransferState<Ready, Busy> {
@@ -89,8 +89,7 @@ mod dmatelemetry {
     {
         type Arg = super::AhrsResult;
 
-        fn send(self, arg: &Self::Arg) -> Self
-        {
+        fn send(self, arg: &Self::Arg) -> Self {
             let ns = match self.state {
                 TransferState::Ready((mut buffer, ch, tx)) => {
                     TW::write_arg(&mut buffer, &arg);
@@ -157,5 +156,4 @@ mod dmatelemetry {
             buffer.push('\n' as u8);
         }
     }
-
 }
