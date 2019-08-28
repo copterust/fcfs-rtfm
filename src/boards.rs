@@ -46,7 +46,7 @@ mod defs {
 
     pub type NcsPinDef<B> = gpio::PB9<PullNone, B>;
     type NT = NcsPinDef<Input>;
-    pub type MpuIntPin = gpio::PC13<PullDown, Input>;
+    pub type MpuIntPin = gpio::PC13<PullUp, Input>;
 
     pub type SpiT = hal::pac::SPI1;
     pub type USART = hal::pac::USART2;
@@ -71,7 +71,7 @@ mod defs {
         let ad0_sdo_miso = device.gpiob.pb4;
         let sda_sdi_mosi = device.gpiob.pb5;
 
-        let mpu_interrupt_pin = device.gpioc.pc13.pull_type(PullDown);
+        let mpu_interrupt_pin = device.gpioc.pc13.pull_type(PullUp);
         let extih =
             device.exti.EXTI13.bind(mpu_interrupt_pin, &mut device.syscfg);
 
@@ -96,7 +96,7 @@ mod defs {
 
     pub type NcsPinDef<B> = gpio::PB0<PullNone, B>;
     type NT = NcsPinDef<Input>;
-    pub type MpuIntPin = gpio::PA0<PullDown, Input>;
+    pub type MpuIntPin = gpio::PA0<PullUp, Input>;
 
     pub type SpiT = hal::pac::SPI1;
     pub type USART = hal::pac::USART2;
@@ -121,7 +121,7 @@ mod defs {
         let ad0_sdo_miso = device.gpiob.pb4;
         let sda_sdi_mosi = device.gpiob.pb5;
 
-        let mpu_interrupt_pin = device.gpioa.pa0.pull_type(PullDown);
+        let mpu_interrupt_pin = device.gpioa.pa0.pull_type(PullUp);
         let mut extih =
             device.exti.EXTI0.bind(mpu_interrupt_pin, &mut device.syscfg);
 
