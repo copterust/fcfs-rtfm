@@ -53,6 +53,7 @@ mod defs {
     pub type UsartPins =
         (gpio::PA14<PullNone, Input>, gpio::PA15<PullNone, Input>);
     pub type TxUsart = Tx<USART>;
+    pub type RxUsart = Rx<USART>;
     pub type TxCh = hal::dma::dma1::C7;
     pub type ExtiNum = hal::exti::EXTI13;
 
@@ -102,6 +103,7 @@ mod defs {
     pub type UsartPins =
         (gpio::PA2<PullNone, Input>, gpio::PA15<PullNone, Input>);
     pub type TxUsart = Tx<USART>;
+    pub type RxUsart = Rx<USART>;
     pub type TxCh = hal::dma::dma1::C7;
     pub type ExtiNum = hal::exti::EXTI0;
 
@@ -208,6 +210,8 @@ pub mod mydevice {
         MPU_EXT_INT = hal::pac::Interrupt::EXTI15_10 as u8,
         #[cfg(configuration = "configuration_dev")]
         MPU_EXT_INT = hal::pac::Interrupt::EXTI0 as u8,
+
+        UART_INT = hal::pac::Interrupt::USART2_EXTI26 as u8,
     }
 
     unsafe impl rtfm::export::interrupt::Nr for Interrupt {

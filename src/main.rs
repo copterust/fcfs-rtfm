@@ -15,8 +15,10 @@ use panic_abort;
 mod ahrs;
 mod boards;
 mod chrono;
+mod cmd;
 mod mixer;
 mod prelude;
+mod spsc;
 #[macro_use]
 mod logging;
 mod telemetry;
@@ -45,6 +47,10 @@ const APP: () = {
     static mut DEBUG_PIN: DebugPinT = ();
     // Option is needed to be able to change it in-flight (Option::take)
     static mut TELE: Option<telemetry::T> = ();
+    static mut RX: crate::boards::RxUsart = ();
+    static mut CMD: crate::cmd::Cmd = crate::cmd::Cmd::new();
+    static mut PRODUCER: crate::spsc::Tx = ();
+    static mut CONSUMER: crate::spsc::Rx = ();
 
     #[init]
     fn init(ctx: init::Context) -> init::LateResources {
@@ -67,7 +73,7 @@ const APP: () = {
                             .pull_type(PullNone);
 
         let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
-        let (tx, _rx) = usart.split();
+        let (tx, rx) = usart.split();
 
         // SPI1
         let spi = conf.spi.spi(conf.spi_pins, mpu9250::MODE, 1.mhz(), clocks);
@@ -106,11 +112,43 @@ const APP: () = {
         info!(log, "ready");
         ahrs.setup_time();
 
+        let (producer, consumer) = spsc::channel();
+
         init::LateResources { EXTIH: conf.extih,
                               AHRS: ahrs,
                               TELE: Some(telemetry::create(conf.tx_ch, tx)),
                               LOG: log,
-                              DEBUG_PIN: debug_pin }
+                              DEBUG_PIN: debug_pin,
+                              RX: rx,
+                              PRODUCER: producer,
+                              CONSUMER: consumer }
+    }
+
+    #[idle(resources=[CMD, CONSUMER])]
+    fn idle(ctx: idle::Context) -> ! {
+        let mut cmd = ctx.resources.CMD;
+        let mut consumer = ctx.resources.CONSUMER;
+        loop {
+            if let Some(byte) = consumer.dequeue() {
+                if let Some(word) = cmd.push(byte) {}
+            }
+        }
+    }
+
+    #[interrupt(binds=UART_INT, resources = [RX, PRODUCER, LOG])]
+    fn handle_rx(ctx: handle_rx::Context) {
+        let rx = ctx.resources.RX;
+        let mut log = ctx.resources.LOG;
+        let producer = ctx.resources.PRODUCER;
+
+        match rx.read() {
+            Ok(b) => {
+                if let Err(e) = producer.enqueue(b) {
+                    error!(log, "no space");
+                }
+            },
+            Err(e) => error!(log, "err read"),
+        }
     }
 
     #[interrupt(binds=MPU_EXT_INT,
