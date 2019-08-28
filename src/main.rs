@@ -24,6 +24,7 @@ mod logging;
 mod telemetry;
 
 use core::fmt::Write;
+use cortex_m_rt::{exception, ExceptionFrame};
 
 use hal::delay::Delay;
 use hal::prelude::*;
@@ -113,7 +114,7 @@ const APP: () = {
         ahrs.setup_time();
 
         let (producer, consumer) = spsc::channel();
-
+        info!(log, "done init");
         init::LateResources { EXTIH: conf.extih,
                               AHRS: ahrs,
                               TELE: Some(telemetry::create(conf.tx_ch, tx)),
@@ -124,13 +125,13 @@ const APP: () = {
                               CONSUMER: consumer }
     }
 
-    #[idle(resources=[CMD, CONSUMER])]
-    fn idle(ctx: idle::Context) -> ! {
-        let mut cmd = ctx.resources.CMD;
-        let mut consumer = ctx.resources.CONSUMER;
+    #[idle(resources=[CMD, CONSUMER, LOG])]
+    fn idle(mut ctx: idle::Context) -> ! {
         loop {
-            if let Some(byte) = consumer.dequeue() {
-                if let Some(word) = cmd.push(byte) {}
+            if let Some(byte) = ctx.resources.CONSUMER.dequeue() {
+                if let Some(word) = ctx.resources.CMD.push(byte) {
+                    ctx.resources.LOG.lock(|log| info!(log, ">> {:?}", word));
+                }
             }
         }
     }
@@ -183,3 +184,13 @@ const APP: () = {
         ctx.resources.EXTIH.unpend();
     }
 };
+
+#[exception]
+fn HardFault(ef: &ExceptionFrame) -> ! {
+    panic!("HardFault at {:#?}", ef);
+}
+
+#[exception]
+fn DefaultHandler(irqn: i16) {
+    panic!("Unhandled exception (IRQn = {})", irqn);
+}
