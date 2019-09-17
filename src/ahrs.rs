@@ -4,7 +4,7 @@ use ehal::blocking::delay::DelayMs;
 
 use ehal::blocking::spi;
 use libm::{asinf, atan2f, fabsf};
-use mpu9250::{Mpu9250, Vector3};
+use mpu9250::Mpu9250;
 
 // Magnetometer calibration parameters
 // NOTE you need to use the right parameters for *your* magnetometer
@@ -56,26 +56,28 @@ impl<DEV, E, T> AHRS<DEV, T>
     }
 
     pub fn estimate(&mut self) -> Result<AhrsResult, E> {
-        let meas = self.mpu.all()?;
+        let meas = self.mpu.all::<[f32; 3]>()?;
         let dt_s = self.timer_ms.split_time_s();
         let accel = meas.accel;
         let gyro = meas.gyro;
         let (ypr, gyro_biases) =
-            self.dcmimu.update(vec_to_tuple(&gyro), vec_to_tuple(&accel), dt_s);
-        let gyro_biases =
-            Vector3::new(gyro_biases.x, gyro_biases.y, gyro_biases.z);
-        let biased_gyro = gyro - gyro_biases;
+            self.dcmimu.update((gyro[0], gyro[1], gyro[2]),
+                               (accel[0], accel[1], accel[2]),
+                               dt_s);
+        let biased_gyro = [gyro[0] - gyro_biases.x,
+                           gyro[1] - gyro_biases.y,
+                           gyro[2] - gyro_biases.z];
         Ok(AhrsResult { ypr, accel, gyro, biased_gyro, dt_s })
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct AhrsResult {
-    pub accel: Vector3<f32>,
-    pub gyro: Vector3<f32>,
+    pub accel: [f32; 3],
+    pub gyro: [f32; 3],
     pub dt_s: f32,
     pub ypr: dcmimu::EulerAngles,
-    pub biased_gyro: Vector3<f32>,
+    pub biased_gyro: [f32; 3],
 }
 
 pub trait AhrsShortResult {
@@ -89,12 +91,12 @@ pub trait AhrsLongResult {
 impl AhrsShortResult for AhrsResult {
     // ax,ay,az,gx,gy,gz,dt_s,y,p,r
     fn short_results(&self) -> [f32; 10] {
-        [self.accel.x,
-         self.accel.y,
-         self.accel.z,
-         self.gyro.x,
-         self.gyro.y,
-         self.gyro.z,
+        [self.accel[0],
+         self.accel[1],
+         self.accel[2],
+         self.gyro[0],
+         self.gyro[1],
+         self.gyro[2],
          self.dt_s,
          self.ypr.yaw,
          self.ypr.pitch,
@@ -105,22 +107,18 @@ impl AhrsShortResult for AhrsResult {
 impl AhrsLongResult for AhrsResult {
     // ax,ay,az,gx,gy,gz,dt_s,y,p,r,bgx,bgy,bgz
     fn long_results(&self) -> [f32; 13] {
-        [self.accel.x,
-         self.accel.y,
-         self.accel.z,
-         self.gyro.x,
-         self.gyro.y,
-         self.gyro.z,
+        [self.accel[0],
+         self.accel[1],
+         self.accel[2],
+         self.gyro[0],
+         self.gyro[1],
+         self.gyro[2],
          self.dt_s,
          self.ypr.yaw,
          self.ypr.pitch,
          self.ypr.roll,
-         self.biased_gyro.x,
-         self.biased_gyro.y,
-         self.biased_gyro.z]
+         self.biased_gyro[0],
+         self.biased_gyro[1],
+         self.biased_gyro[2]]
     }
-}
-
-fn vec_to_tuple(inp: &Vector3<f32>) -> (f32, f32, f32) {
-    (inp.x, inp.y, inp.z)
 }

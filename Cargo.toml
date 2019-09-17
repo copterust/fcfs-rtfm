@@ -30,7 +30,7 @@ rev = "fafeeb27270ef24fc3852711c6032f65aa7dbcc0"
 features = ["timer-queue"]
 
 [dependencies.mpu9250]
-version = "0.12"
+version = "0.20"
 # path = "../mpu9250"
 # git = "https://github.com/copterust/mpu9250"
 
@@ -44,10 +44,6 @@ version = "0.22"
 # path = "../alt-stm32f30x-hal"
 package = "alt-stm32f30x-hal"
 features = ["rt", "stm32f303"]
-
-[dependencies.nalgebra]
-default-features = false
-version = "0.18"
 
 
 [profile]

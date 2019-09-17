@@ -1,5 +1,3 @@
-use nalgebra::{self, clamp};
-
 use crate::boards::*;
 use hal::timer;
 
@@ -57,14 +55,14 @@ fn create6(quad_tim: QuadMotorsTim,
     timer3.enable();
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let map = Map6::from_row_slice(&[
-        0.567, -0.815, -1.0, 1.0, /* rear right */
-        0.567, 0.815, -1.0, 1.0, /* front right */
-        -0.567, -0.815, 1.0, 1.0, /* rear left */
-        -0.567, 0.815, 1.0, 1.0, /* front left */
-        -1.0, -0.0, -1.0, 1.0, /* left */
-        1.0, -0.0, 1.0, 1.0 /* right */
-    ]);
+    let map = [
+        [0.567, -0.815, -1.0, 1.0], /* rear right */
+        [0.567, 0.815, -1.0, 1.0], /* front right */
+        [-0.567, -0.815, 1.0, 1.0], /* rear left */
+        [-0.567, 0.815, 1.0, 1.0], /* front left */
+        [-1.0, -0.0, -1.0, 1.0], /* left */
+        [1.0, -0.0, 1.0, 1.0] /* right */
+    ];
     Mixer { map,
             max_duty: m1_rear_right.get_max_duty() as f32,
             pin: (m1_rear_right,
@@ -85,9 +83,8 @@ pub struct Mixer<M, P> {
     pub max_duty: f32,
 }
 
-pub type Ctrl = nalgebra::Vector4<f32>;
-pub type Map4 = nalgebra::Matrix4<f32>;
-pub type Map6 = nalgebra::Matrix6x4<f32>;
+pub type Map4 = [[f32; 4]; 4];
+pub type Map6 = [[f32; 4]; 6];
 
 macro_rules! impl_motor_ctrl {
     ($map:ident, $num:expr, $($pin:ident $nr:tt)+) => (
@@ -102,9 +99,15 @@ macro_rules! impl_motor_ctrl {
         impl<$($pin),+> MotorCtrl for Mixer<$map, ($($pin),+)>
         where $($pin: ehal::PwmPin<Duty = u32>),+ {
             fn set_duty(&mut self, x: f32, y: f32, z: f32, thrust: f32) {
-                let duty = self.map * Ctrl::new(x, y, z, thrust);
+                // let duty = self.map * Ctrl::new(x, y, z, thrust);
                 let max_duty = self.max_duty;
-                $( self.pin.$nr.set_duty(clamp(duty[$nr], 0.0, max_duty) as u32); )+
+                $(
+                    {
+                        let row = self.map[$nr];
+                        let iduty = row[0] * x + row[1] * y + row[2] * z + row[3] * thrust;
+                        self.pin.$nr.set_duty(clamp(iduty, 0.0, max_duty) as u32);
+                    }
+                )+
             }
         }
     )
@@ -112,3 +115,17 @@ macro_rules! impl_motor_ctrl {
 
 impl_motor_ctrl!(Map4, 4, A 0 B 1 C 2 D 3);
 impl_motor_ctrl!(Map6, 6, A 0 B 1 C 2 D 3 E 4 F 5);
+
+
+#[inline]
+fn clamp<T: PartialOrd>(val: T, min: T, max: T) -> T {
+    if val > min {
+        if val < max {
+            val
+        } else {
+            max
+        }
+    } else {
+        min
+    }
+}
