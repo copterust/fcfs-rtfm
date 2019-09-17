@@ -33,27 +33,30 @@ use asm_delay::{AsmDelay, CyclesToTime};
 use cortex_m_log::printer::Printer;
 use mpu9250::{Mpu9250, MpuConfig};
 use nb::block;
-use rtfm::{app, Instant};
+use rtfm::app;
 
 use boards::*;
 use prelude::*;
 use telemetry::Telemetry;
 
-#[app(device = crate::boards::mydevice)]
+#[app(device = crate::boards::mydevice, peripherals = true)]
 const APP: () = {
-    // ext should be configured in boards
-    static mut EXTIH: hal::exti::BoundInterrupt<MpuIntPin, ExtiNum> = ();
-    static mut AHRS: ahrs::AHRS<Dev, chrono::T> = ();
-    static mut LOG: logging::T = ();
-    static mut DEBUG_PIN: DebugPinT = ();
-    // Option is needed to be able to change it in-flight (Option::take)
-    static mut TELE: Option<telemetry::T> = ();
-    static mut RX: crate::boards::RxUsart = ();
-    static mut CMD: crate::cmd::Cmd = crate::cmd::Cmd::new();
-    static mut PRODUCER: crate::spsc::Tx = ();
-    static mut CONSUMER: crate::spsc::Rx = ();
+    struct Resources {
+        // ext should be configured in boards
+        EXTIH: hal::exti::BoundInterrupt<MpuIntPin, ExtiNum>,
+        AHRS: ahrs::AHRS<Dev, chrono::T>,
+        LOG: logging::T,
+        DEBUG_PIN: DebugPinT,
+        // Option is needed to be able to change it in-flight (Option::take)
+        TELE: Option<telemetry::T>,
+        RX: crate::boards::RxUsart,
+        #[init(crate::cmd::Cmd::new())]
+        CMD: crate::cmd::Cmd,
+        PRODUCER: crate::spsc::Tx,
+        CONSUMER: crate::spsc::Rx,
+    }
 
-    #[init]
+    #[init()]
     fn init(ctx: init::Context) -> init::LateResources {
         let device = ctx.device;
         let clocks = device.clocks;
@@ -136,7 +139,7 @@ const APP: () = {
         }
     }
 
-    #[interrupt(binds=UART_INT, resources = [RX, PRODUCER, LOG])]
+    #[task(binds=UART_INT, resources = [RX, PRODUCER, LOG])]
     fn handle_rx(ctx: handle_rx::Context) {
         let rx = ctx.resources.RX;
         let mut log = ctx.resources.LOG;
@@ -152,7 +155,7 @@ const APP: () = {
         }
     }
 
-    #[interrupt(binds=MPU_EXT_INT,
+    #[task(binds=MPU_EXT_INT,
                 resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE])]
     fn handle_mpu_dev(ctx: handle_mpu_dev::Context) {
         let _ = ctx.resources.DEBUG_PIN.set_high();
