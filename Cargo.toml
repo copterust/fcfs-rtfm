@@ -10,23 +10,24 @@ name = "fcfs-rtfm"
 test = false
 
 [dependencies]
-cortex-m = {version = "0.6.0", features = ["inline-asm", "const-fn"]}
-cortex-m-rt = "0.6.8"
-panic-abort = "0.3.1"
-ryu = "0.2"
-nb = "0.1.1"
+cortex-m = {version = "0.6.1", features = ["inline-asm", "const-fn"]}
+cortex-m-rt = "0.6.10"
+panic-abort = "0.3.2"
+ryu = "1.0.2"
+nb = "0.1.2"
 asm-delay = "0.7.0"
 dcmimu = "0.2.1"
-libm = "0.1.2"
-heapless = {version = "0.5.0"}
+libm = "0.1.4"
+heapless = {version = "0.5.1"}
 
 [dependencies.cortex-m-log]
-version = "0.6.0"
+version = "0.6.1"
 features = ["itm", "semihosting"]
 
 [dependencies.cortex-m-rtfm]
-git = "https://github.com/rtfm-rs/cortex-m-rtfm"
-rev = "38306389ea4d8fadac8565e681887740912e14bd"
+version = "0.5.0-beta.1"
+# git = "https://github.com/rtfm-rs/cortex-m-rtfm"
+# rev = "38306389ea4d8fadac8565e681887740912e14bd"
 
 [dependencies.mpu9250]
 version = "0.20"
@@ -35,7 +36,7 @@ version = "0.20"
 
 [dependencies.ehal]
 features = ["unproven"]
-version = "0.2.2"
+version = "0.2.3"
 package = "embedded-hal"
 
 [dependencies.hal]
