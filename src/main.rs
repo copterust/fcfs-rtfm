@@ -23,6 +23,7 @@ mod spsc;
 mod logging;
 mod communication;
 mod telemetry;
+mod utils;
 
 use core::fmt::Write;
 use cortex_m_rt::{exception, ExceptionFrame};
@@ -131,12 +132,20 @@ const APP: () = {
                               CONSUMER: consumer }
     }
 
-    #[idle(resources=[CMD, CONSUMER, LOG])]
+    #[idle(resources=[CMD, CONSUMER, CHANNEL])]
     fn idle(mut ctx: idle::Context) -> ! {
+        let cmd = ctx.resources.CMD;
         loop {
             if let Some(byte) = ctx.resources.CONSUMER.dequeue() {
-                if let Some(word) = ctx.resources.CMD.push(byte) {
-                    ctx.resources.LOG.lock(|log| info!(log, ">> {:?}", word));
+                if let Some(word) = cmd.push(byte) {
+                    ctx.resources.CHANNEL.lock(|shared_channel| {
+                        let maybe_channel = shared_channel.take();
+                        if let Some(channel) = maybe_channel {
+                            let new_channel =
+                                channel.send(|b| utils::fill_with_bytes(b, word));
+                            *shared_channel = Some(new_channel);
+                        }
+                    })
                 }
             }
         }
