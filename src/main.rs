@@ -80,6 +80,7 @@ const APP: () = {
                             .pull_type(PullNone);
 
         let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
+        usart.listen(hal::serial::Event::Rxne);
         let (tx, rx) = usart.split();
 
         // SPI1
@@ -119,8 +120,8 @@ const APP: () = {
         ahrs.setup_time();
 
         let (producer, consumer) = spsc::channel();
-        info!(log, "done init");
         let channel = communication::create_channel(conf.tx_ch, tx);
+        info!(log, "done init");
         init::LateResources { EXTIH: conf.extih,
                               AHRS: ahrs,
                               CHANNEL: Some(channel),
@@ -167,9 +168,8 @@ const APP: () = {
         }
     }
 
-    #[task(binds=MPU_EXT_INT,
-                resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL])]
-    fn handle_mpu_dev(ctx: handle_mpu_dev::Context) {
+    #[task(binds=MPU_EXT_INT, resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL])]
+    fn handle_mpu(ctx: handle_mpu::Context) {
         let _ = ctx.resources.DEBUG_PIN.set_high();
         let mut ahrs = ctx.resources.AHRS;
         let mut log = ctx.resources.LOG;
