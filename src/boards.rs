@@ -206,12 +206,10 @@ pub mod mydevice {
     #[derive(Clone, Copy)]
     #[allow(non_camel_case_types)]
     pub enum Interrupt {
-        #[cfg(configuration = "configuration_drone")]
-        MPU_EXT_INT = hal::pac::Interrupt::EXTI15_10 as u8,
-        #[cfg(configuration = "configuration_dev")]
-        MPU_EXT_INT = hal::pac::Interrupt::EXTI0 as u8,
+        EXTI15_10 = hal::pac::Interrupt::EXTI15_10 as u8,
+        EXTI0 = hal::pac::Interrupt::EXTI0 as u8,
 
-        UART_INT = hal::pac::Interrupt::USART2_EXTI26 as u8,
+        USART2_EXTI26 = hal::pac::Interrupt::USART2_EXTI26 as u8,
     }
 
     unsafe impl rtfm::export::interrupt::Nr for Interrupt {
