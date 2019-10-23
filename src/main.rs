@@ -152,7 +152,7 @@ const APP: () = {
         }
     }
 
-    #[task(binds=UART_INT, resources = [RX, PRODUCER, LOG])]
+    #[task(binds=USART2_EXTI26, resources = [RX, PRODUCER, LOG])]
     fn handle_rx(ctx: handle_rx::Context) {
         let rx = ctx.resources.RX;
         let mut log = ctx.resources.LOG;
@@ -168,38 +168,53 @@ const APP: () = {
         }
     }
 
-    #[task(binds=MPU_EXT_INT, resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL])]
-    fn handle_mpu(ctx: handle_mpu::Context) {
-        let _ = ctx.resources.DEBUG_PIN.set_high();
-        let mut ahrs = ctx.resources.AHRS;
-        let mut log = ctx.resources.LOG;
-        let tele = ctx.resources.TELE;
-        let mut maybe_channel = ctx.resources.CHANNEL.take();
+    #[task(binds=EXTI15_10, resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL])]
+    fn handle_mpu_drone(ctx: handle_mpu_drone::Context) {
+        #[cfg(configuration = "configuration_drone")]
+        handle_mpu(ctx);
+    }
 
-        match ahrs.estimate() {
-            Ok(result) => {
-                // resources.TELE should always be Some, but for
-                // future proof, let's be safe
-                if let Some(channel) = maybe_channel {
-                    let new_channel = channel.send(|b| tele.report(&result, b));
-                    *ctx.resources.CHANNEL = Some(new_channel);
-                }
-
-                debugfloats!(log,
-                             ":",
-                             result.ypr.yaw,
-                             result.ypr.pitch,
-                             result.ypr.roll);
-            },
-            Err(_e) => {
-                error!(log, "err");
-            },
-        };
-
-        let _ = ctx.resources.DEBUG_PIN.set_low();
-        ctx.resources.EXTIH.unpend();
+    #[task(binds=EXTI0, resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL])]
+    fn handle_mpu_dev(ctx: handle_mpu_dev::Context) {
+        #[cfg(configuration = "configuration_dev")]
+        handle_mpu(ctx);
     }
 };
+
+#[cfg(configuration = "configuration_drone")]
+type CtxType<'a> = handle_mpu_drone::Context<'a>;
+#[cfg(configuration = "configuration_dev")]
+type CtxType<'a> = handle_mpu_dev::Context<'a>;
+fn handle_mpu(mut ctx: CtxType) {
+    let _ = ctx.resources.DEBUG_PIN.set_high();
+    let mut ahrs = ctx.resources.AHRS;
+    let mut log = ctx.resources.LOG;
+    let tele = ctx.resources.TELE;
+    let mut maybe_channel = ctx.resources.CHANNEL.take();
+
+    match ahrs.estimate() {
+        Ok(result) => {
+            // resources.TELE should always be Some, but for
+            // future proof, let's be safe
+            if let Some(channel) = maybe_channel {
+                let new_channel = channel.send(|b| tele.report(&result, b));
+                *ctx.resources.CHANNEL = Some(new_channel);
+            }
+
+            debugfloats!(log,
+                         ":",
+                         result.ypr.yaw,
+                         result.ypr.pitch,
+                         result.ypr.roll);
+        },
+        Err(_e) => {
+            error!(log, "err");
+        },
+    };
+
+    let _ = ctx.resources.DEBUG_PIN.set_low();
+    ctx.resources.EXTIH.unpend();
+}
 
 #[exception]
 fn HardFault(ef: &ExceptionFrame) -> ! {
