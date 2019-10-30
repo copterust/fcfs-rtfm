@@ -1,10 +1,10 @@
-use crate::communication::TxBuffer;
+use crate::communication::{Channel, TxBuffer};
 use crate::ahrs::AhrsResult;
 use crate::ahrs::AhrsShortResult;
 
 
 pub trait Telemetry {
-    fn report(&self, arg: &AhrsResult, destination: &mut TxBuffer);
+    fn report(&self, arg: &AhrsResult, channel: Channel) -> Channel;
 }
 
 pub type T = impl Telemetry;
@@ -26,18 +26,22 @@ pub fn create() -> T {
 
 impl Telemetry for Dummy {
     #[inline]
-    fn report(&self, arg: &AhrsResult, destination: &mut TxBuffer) {
+    fn report(&self, arg: &AhrsResult, channel: Channel) -> Channel {
+        channel
     }
 }
 
 const MAGIC: [u8; 3] = [108, 111, 108];
 impl Telemetry for Bytes {
-    fn report(&self, arg: &AhrsResult, buffer: &mut TxBuffer) {
-        buffer.extend_from_slice(&MAGIC);
-        // ax,ay,az,gx,gy,gz,dt_s,y,p,r
-        for f in arg.short_results().into_iter() {
-            store_float_as_bytes(buffer, *f);
-        }
+    #[inline]
+    fn report(&self, arg: &AhrsResult, channel: Channel) -> Channel {
+        channel.send(|buffer| {
+            buffer.extend_from_slice(&MAGIC);
+            // ax,ay,az,gx,gy,gz,dt_s,y,p,r
+            for f in arg.short_results().into_iter() {
+                store_float_as_bytes(buffer, *f);
+            }
+        })
     }
 }
 fn store_float_as_bytes(buffer: &mut TxBuffer, f: f32) {
@@ -49,14 +53,17 @@ fn store_float_as_bytes(buffer: &mut TxBuffer, f: f32) {
 }
 
 impl Telemetry for Words {
-    fn report(&self, arg: &AhrsResult, buffer: &mut TxBuffer) {
-        // ax,ay,az,gx,gy,gz,dt_s,y,p,r
-        for f in arg.short_results().into_iter() {
-            let mut b = ryu::Buffer::new();
-            let s = b.format(*f);
-            buffer.extend_from_slice(s.as_bytes());
-            buffer.push(';' as u8);
-        }
-        buffer.push('\n' as u8);
+    #[inline]
+    fn report(&self, arg: &AhrsResult, channel: Channel) -> Channel {
+        channel.send(|buffer| {
+            // ax,ay,az,gx,gy,gz,dt_s,y,p,r
+            for f in arg.short_results().into_iter() {
+                let mut b = ryu::Buffer::new();
+                let s = b.format(*f);
+                buffer.extend_from_slice(s.as_bytes());
+                buffer.push(';' as u8);
+            }
+            buffer.push('\n' as u8);
+        })
     }
 }

@@ -174,6 +174,7 @@ const APP: () = {
         handle_mpu(ctx);
     }
 
+
     #[task(binds=EXTI0, resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL])]
     fn handle_mpu_dev(ctx: handle_mpu_dev::Context) {
         #[cfg(configuration = "configuration_dev")]
@@ -194,10 +195,8 @@ fn handle_mpu(mut ctx: CtxType) {
 
     match ahrs.estimate() {
         Ok(result) => {
-            // resources.TELE should always be Some, but for
-            // future proof, let's be safe
             if let Some(channel) = maybe_channel {
-                let new_channel = channel.send(|b| tele.report(&result, b));
+                let new_channel = tele.report(&result, channel);
                 *ctx.resources.CHANNEL = Some(new_channel);
             }
 
