@@ -78,18 +78,17 @@ log_itm = []
 level_info = []
 level_debug = []
 level_error = []
-telemetry_bytes = []
 telemetry_words = []
 telemetry_dummy = []
 configuration_drone = []
 configuration_dev = []
 default = ["log_semihosting",
            "level_debug",
-           "telemetry_bytes",
+           "telemetry_words",
            "configuration_dev"]
 
 [package.metadata.feature_groups]
 log = ["log_semihosting", "log_dummy", "log_itm"]
 level = ["level_debug", "level_info", "level_error"]
-telemetry = ["telemetry_bytes", "telemetry_words", "telemetry_dummy"]
+telemetry = ["telemetry_words", "telemetry_dummy"]
 configuration = ["configuration_drone", "configuration_dev"]
