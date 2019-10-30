@@ -10,7 +10,7 @@ install:
 
 script:
   - make release=1 level=info telemetry=words log=semihosting configuration=dev
-  - make release=1 level=debug telemetry=bytes log=itm configuration=drone
+  - make release=1 level=debug telemetry=dummy log=itm configuration=drone
 
 cache: cargo
 before_cache:
