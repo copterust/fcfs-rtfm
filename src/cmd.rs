@@ -1,4 +1,4 @@
-const BUFFER_SIZE: usize = 128;
+const BUFFER_SIZE: usize = 512;
 const CR: u8 = '\r' as u8;
 const LF: u8 = '\n' as u8;
 

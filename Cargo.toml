@@ -1,9 +1,12 @@
+cargo-features = ["profile-overrides"]
+
 [package]
 authors = ["Roma Sokolov", "Alexander Zhuravlev <123368+bofh@users.noreply.github.com>"]
 edition = "2018"
 name = "fcfs-rtfm"
 readme = "README.md"
 version = "0.1.0"
+
 [[bin]]
 bench = false
 name = "fcfs-rtfm"
@@ -54,6 +57,16 @@ codegen-units = 1
 debug = true
 lto = true
 incremental = false
+
+[profile.dev]
+panic = "abort"
+opt-level = 0
+codegen-units = 1
+debug = true
+lto = true
+incremental = false
+[profile.dev.overrides."*"]
+opt-level = "z"
 
 [build-dependencies]
 cfg_feature_groups = "0.1.1"

@@ -1,151 +1,61 @@
+use crate::communication::{Channel, TxBuffer};
 use crate::ahrs::AhrsResult;
+use crate::ahrs::AhrsShortResult;
+
 
 pub trait Telemetry {
-    type Arg;
-
-    fn send(self, arg: &Self::Arg) -> Self;
+    fn report(&self, arg: &AhrsResult, channel: Channel) -> Channel;
 }
 
-pub type T = impl Telemetry<Arg = AhrsResult>;
+pub type T = impl Telemetry;
+
+pub struct Dummy;
+pub struct Bytes;
+pub struct Words;
 
 #[allow(unused)]
-pub fn create(ch: crate::boards::TxCh, tx: crate::boards::TxUsart) -> T {
+pub fn create() -> T {
     #[cfg(telemetry = "telemetry_dummy")]
-    return dummy::make();
+    return Dummy;
     #[cfg(telemetry = "telemetry_bytes")]
-    return dmatelemetry::DmaTelemetry::create(ch,
-                                              tx,
-                                              dmatelemetry::ByteWriter);
+    return Bytes;
     #[cfg(telemetry = "telemetry_words")]
-    return dmatelemetry::DmaTelemetry::create(ch,
-                                              tx,
-                                              dmatelemetry::WordWriter);
+    return Words;
 }
 
-mod dummy {
-    pub struct Dummy;
 
-    impl super::Telemetry for Dummy {
-        type Arg = super::AhrsResult;
-
-        fn send(self, arg: &Self::Arg) -> Self {
-            self
-        }
-    }
-
-    pub fn make() -> Dummy {
-        Dummy
+impl Telemetry for Dummy {
+    #[inline]
+    fn report(&self, arg: &AhrsResult, channel: Channel) -> Channel {
+        channel
     }
 }
 
-#[cfg(any(telemetry = "telemetry_bytes", telemetry = "telemetry_words"))]
-mod dmatelemetry {
-    use crate::ahrs::AhrsShortResult;
-    use crate::boards::*;
-
-    use heapless::consts::*;
-    use heapless::Vec;
-
-    type TxBuffer = Vec<u8, U256>;
-    type TxReady = (&'static mut TxBuffer, TxCh, TxUsart);
-    type TxBusy = dma::Transfer<dma::R, &'static mut TxBuffer, TxCh, TxUsart>;
-
-    static mut BUFFER: TxBuffer = Vec(heapless::i::Vec::new());
-
-    #[derive(Debug, Clone, Copy)]
-    enum TransferState<Ready, Busy> {
-        Ready(Ready),
-        MaybeBusy(Busy),
-    }
-
-    pub trait TelemetryWriter {
-        type Arg;
-        fn write_arg(buffer: &mut TxBuffer, arg: &Self::Arg);
-    }
-
-    pub struct DmaTelemetry<Ready, Busy, TW> {
-        state: TransferState<Ready, Busy>,
-        _tw: core::marker::PhantomData<TW>,
-    }
-
-    impl<Ready, Busy, TW> DmaTelemetry<Ready, Busy, TW> {
-        fn with_state(ns: TransferState<Ready, Busy>) -> Self {
-            DmaTelemetry { state: ns, _tw: core::marker::PhantomData }
-        }
-    }
-
-    impl<TW: TelemetryWriter<Arg = super::AhrsResult>>
-        DmaTelemetry<TxReady, TxBusy, TW>
-    {
-        pub fn create(ch: TxCh, tx: TxUsart, _tw: TW) -> Self {
-            let bf = unsafe { &mut BUFFER };
-            let state = TransferState::Ready((bf, ch, tx));
-            DmaTelemetry::with_state(state)
-        }
-    }
-
-    impl<TW: TelemetryWriter<Arg = super::AhrsResult>> super::Telemetry
-        for DmaTelemetry<TxReady, TxBusy, TW>
-    {
-        type Arg = super::AhrsResult;
-
-        fn send(self, arg: &Self::Arg) -> Self {
-            let ns = match self.state {
-                TransferState::Ready((mut buffer, ch, tx)) => {
-                    TW::write_arg(&mut buffer, &arg);
-                    TransferState::MaybeBusy(tx.write_all(ch, buffer))
-                },
-                TransferState::MaybeBusy(transfer) => {
-                    if transfer.is_done() {
-                        let (buffer, ch, tx) = transfer.wait();
-                        buffer.clear();
-                        TransferState::Ready((buffer, ch, tx))
-                    } else {
-                        // not ready yet, skip tansfer
-                        // XXX: alternatevely, we can allocate bigger buffer
-                        //      and use its chunks.
-                        TransferState::MaybeBusy(transfer)
-                    }
-                },
-            };
-
-            match ns {
-                TransferState::MaybeBusy(_) => DmaTelemetry::with_state(ns),
-                TransferState::Ready(_) => {
-                    DmaTelemetry::with_state(ns).send(arg)
-                },
-            }
-        }
-    }
-
-    const MAGIC: [u8; 3] = [108, 111, 108];
-    pub struct ByteWriter;
-    impl ByteWriter {
-        fn store_float_as_bytes(buffer: &mut TxBuffer, f: f32) {
-            let bits = f.to_bits();
-            let bytes: [u8; 4] = unsafe { core::mem::transmute(bits) };
-            for byte in bytes.iter() {
-                buffer.push(*byte);
-            }
-        }
-    }
-    impl TelemetryWriter for ByteWriter {
-        type Arg = super::AhrsResult;
-
-        fn write_arg(buffer: &mut TxBuffer, arg: &Self::Arg) {
+const MAGIC: [u8; 3] = [108, 111, 108];
+impl Telemetry for Bytes {
+    #[inline]
+    fn report(&self, arg: &AhrsResult, channel: Channel) -> Channel {
+        channel.send(|buffer| {
             buffer.extend_from_slice(&MAGIC);
             // ax,ay,az,gx,gy,gz,dt_s,y,p,r
             for f in arg.short_results().into_iter() {
-                ByteWriter::store_float_as_bytes(buffer, *f);
+                store_float_as_bytes(buffer, *f);
             }
-        }
+        })
     }
+}
+fn store_float_as_bytes(buffer: &mut TxBuffer, f: f32) {
+    let bits = f.to_bits();
+    let bytes: [u8; 4] = unsafe { core::mem::transmute(bits) };
+    for byte in bytes.iter() {
+        buffer.push(*byte);
+    }
+}
 
-    pub struct WordWriter;
-    impl TelemetryWriter for WordWriter {
-        type Arg = super::AhrsResult;
-
-        fn write_arg(buffer: &mut TxBuffer, arg: &Self::Arg) {
+impl Telemetry for Words {
+    #[inline]
+    fn report(&self, arg: &AhrsResult, channel: Channel) -> Channel {
+        channel.send(|buffer| {
             // ax,ay,az,gx,gy,gz,dt_s,y,p,r
             for f in arg.short_results().into_iter() {
                 let mut b = ryu::Buffer::new();
@@ -154,6 +64,6 @@ mod dmatelemetry {
                 buffer.push(';' as u8);
             }
             buffer.push('\n' as u8);
-        }
+        })
     }
 }

@@ -21,7 +21,9 @@ mod prelude;
 mod spsc;
 #[macro_use]
 mod logging;
+mod communication;
 mod telemetry;
+mod utils;
 
 use core::fmt::Write;
 use cortex_m_rt::{exception, ExceptionFrame};
@@ -48,7 +50,8 @@ const APP: () = {
         LOG: logging::T,
         DEBUG_PIN: DebugPinT,
         // Option is needed to be able to change it in-flight (Option::take)
-        TELE: Option<telemetry::T>,
+        CHANNEL: Option<communication::Channel>,
+        TELE: telemetry::T,
         RX: crate::boards::RxUsart,
         #[init(crate::cmd::Cmd::new())]
         CMD: crate::cmd::Cmd,
@@ -77,6 +80,7 @@ const APP: () = {
                             .pull_type(PullNone);
 
         let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
+        usart.listen(hal::serial::Event::Rxne);
         let (tx, rx) = usart.split();
 
         // SPI1
@@ -100,12 +104,11 @@ const APP: () = {
                 let new_spi = dev_spi.spi((scl, miso, mosi), mpu9250::MODE, 20.mhz(), clocks);
                 Some((new_spi, ncs))
             },
-        )
-        .unwrap();
+        ).unwrap();
         info!(log, "mpu ok");
 
-        mpu9250.enable_interrupts(mpu9250::InterruptEnable::RAW_RDY_EN)
-               .unwrap();
+        mpu9250.enable_interrupts(
+            mpu9250::InterruptEnable::RAW_RDY_EN).unwrap();
         info!(log, "int enabled; ");
 
         info!(log, "now: {:?}", mpu9250.get_enabled_interrupts());
@@ -117,10 +120,12 @@ const APP: () = {
         ahrs.setup_time();
 
         let (producer, consumer) = spsc::channel();
+        let channel = communication::create_channel(conf.tx_ch, tx);
         info!(log, "done init");
         init::LateResources { EXTIH: conf.extih,
                               AHRS: ahrs,
-                              TELE: Some(telemetry::create(conf.tx_ch, tx)),
+                              CHANNEL: Some(channel),
+                              TELE: telemetry::create(),
                               LOG: log,
                               DEBUG_PIN: debug_pin,
                               RX: rx,
@@ -128,12 +133,20 @@ const APP: () = {
                               CONSUMER: consumer }
     }
 
-    #[idle(resources=[CMD, CONSUMER, LOG])]
+    #[idle(resources=[CMD, CONSUMER, CHANNEL])]
     fn idle(mut ctx: idle::Context) -> ! {
+        let cmd = ctx.resources.CMD;
         loop {
             if let Some(byte) = ctx.resources.CONSUMER.dequeue() {
-                if let Some(word) = ctx.resources.CMD.push(byte) {
-                    ctx.resources.LOG.lock(|log| info!(log, ">> {:?}", word));
+                if let Some(word) = cmd.push(byte) {
+                    ctx.resources.CHANNEL.lock(|shared_channel| {
+                        let maybe_channel = shared_channel.take();
+                        if let Some(channel) = maybe_channel {
+                            let new_channel =
+                                channel.send(|b| utils::fill_with_bytes(b, word));
+                            *shared_channel = Some(new_channel);
+                        }
+                    })
                 }
             }
         }
@@ -155,13 +168,12 @@ const APP: () = {
         }
     }
 
-    #[task(binds=EXTI15_10, resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE])]
+    #[task(binds=EXTI15_10, resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL])]
     fn handle_mpu_drone(ctx: handle_mpu_drone::Context) {
         #[cfg(configuration = "configuration_drone")]
         handle_mpu(ctx);
     }
-
-    #[task(binds=EXTI0, resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE])]
+    #[task(binds=EXTI0, resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL])]
     fn handle_mpu_dev(ctx: handle_mpu_dev::Context) {
         #[cfg(configuration = "configuration_dev")]
         handle_mpu(ctx);
@@ -176,15 +188,14 @@ fn handle_mpu(mut ctx: CtxType) {
     let _ = ctx.resources.DEBUG_PIN.set_high();
     let mut ahrs = ctx.resources.AHRS;
     let mut log = ctx.resources.LOG;
-    let mut maybe_tele = ctx.resources.TELE.take();
+    let tele = ctx.resources.TELE;
+    let mut maybe_channel = ctx.resources.CHANNEL.take();
 
     match ahrs.estimate() {
         Ok(result) => {
-            // resources.TELE should always be Some, but for
-            // future proof, let's be safe
-            if let Some(tele) = maybe_tele {
-                let new_tele = tele.send(&result);
-                *ctx.resources.TELE = Some(new_tele);
+            if let Some(channel) = maybe_channel {
+                let new_channel = tele.report(&result, channel);
+                *ctx.resources.CHANNEL = Some(new_channel);
             }
 
             debugfloats!(log,
