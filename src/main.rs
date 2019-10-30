@@ -23,7 +23,9 @@ mod spsc;
 mod logging;
 mod communication;
 mod telemetry;
+#[macro_use]
 mod utils;
+mod types;
 
 use core::fmt::Write;
 use cortex_m_rt::{exception, ExceptionFrame};
@@ -51,12 +53,14 @@ const APP: () = {
         DEBUG_PIN: DebugPinT,
         // Option is needed to be able to change it in-flight (Option::take)
         CHANNEL: Option<communication::Channel>,
-        TELE: telemetry::T,
+        TELE: telemetry::Telemetry,
         RX: crate::boards::RxUsart,
         #[init(crate::cmd::Cmd::new())]
         CMD: crate::cmd::Cmd,
         PRODUCER: crate::spsc::Tx,
         CONSUMER: crate::spsc::Rx,
+        #[init(crate::types::Control::new())]
+        CONTROL: crate::types::Control,
     }
 
     #[init()]
@@ -119,12 +123,13 @@ const APP: () = {
         info!(log, "ready");
         ahrs.setup_time();
 
-        let (producer, consumer) = spsc::channel();
-        let channel = communication::create_channel(conf.tx_ch, tx);
+        let (producer, consumer) = spsc::pipe();
+        let channel = communication::channel(conf.tx_ch, tx);
+        let new_channel = channel.send(|b| utils::fill_with_str(b, "channel ok\r\n"));
         info!(log, "done init");
         init::LateResources { EXTIH: conf.extih,
                               AHRS: ahrs,
-                              CHANNEL: Some(channel),
+                              CHANNEL: Some(new_channel),
                               TELE: telemetry::create(),
                               LOG: log,
                               DEBUG_PIN: debug_pin,
@@ -133,20 +138,26 @@ const APP: () = {
                               CONSUMER: consumer }
     }
 
-    #[idle(resources=[CMD, CONSUMER, CHANNEL])]
+    #[idle(resources=[CMD, CONSUMER, LOG, CONTROL])]
     fn idle(mut ctx: idle::Context) -> ! {
+        // TODO: move out
         let cmd = ctx.resources.CMD;
+        let mut log = ctx.resources.LOG;
         loop {
             if let Some(byte) = ctx.resources.CONSUMER.dequeue() {
                 if let Some(word) = cmd.push(byte) {
-                    ctx.resources.CHANNEL.lock(|shared_channel| {
-                        let maybe_channel = shared_channel.take();
-                        if let Some(channel) = maybe_channel {
-                            let new_channel =
-                                channel.send(|b| utils::fill_with_bytes(b, word));
-                            *shared_channel = Some(new_channel);
-                        }
-                    })
+                    parse!(word:
+                           ["tmon"] => {
+                               ctx.resources.CONTROL.lock(|c| {
+                                   c.enable_telemetry()
+                               })
+                           },
+                           ["tmoff"] => {
+                               ctx.resources.CONTROL.lock(|c| {
+                                   c.disable_telemetry()
+                               })
+                           }
+                    );
                 }
             }
         }
@@ -168,12 +179,14 @@ const APP: () = {
         }
     }
 
-    #[task(binds=EXTI15_10, resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL])]
+    #[task(binds=EXTI15_10,
+           resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL, CONTROL])]
     fn handle_mpu_drone(ctx: handle_mpu_drone::Context) {
         #[cfg(configuration = "configuration_drone")]
         handle_mpu(ctx);
     }
-    #[task(binds=EXTI0, resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL])]
+    #[task(binds=EXTI0,
+           resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL, CONTROL])]
     fn handle_mpu_dev(ctx: handle_mpu_dev::Context) {
         #[cfg(configuration = "configuration_dev")]
         handle_mpu(ctx);
@@ -189,13 +202,15 @@ fn handle_mpu(mut ctx: CtxType) {
     let mut ahrs = ctx.resources.AHRS;
     let mut log = ctx.resources.LOG;
     let tele = ctx.resources.TELE;
-    let mut maybe_channel = ctx.resources.CHANNEL.take();
 
     match ahrs.estimate() {
         Ok(result) => {
-            if let Some(channel) = maybe_channel {
-                let new_channel = tele.report(&result, channel);
-                *ctx.resources.CHANNEL = Some(new_channel);
+            if ctx.resources.CONTROL.telemetry() {
+                let mut maybe_channel = ctx.resources.CHANNEL.take();
+                if let Some(channel) = maybe_channel {
+                    let new_channel = tele.report(&result, channel);
+                    *ctx.resources.CHANNEL = Some(new_channel);
+                }
             }
 
             debugfloats!(log,

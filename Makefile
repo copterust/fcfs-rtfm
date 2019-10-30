@@ -10,9 +10,8 @@ BIN := $(TARGET_PATH)/$(NAME)
 fea :=
 log := semihosting
 level := info
-telemetry := words
 configuration := dev
-FEATURES := "--features=log_$(log),level_$(level),telemetry_$(telemetry),configuration_$(configuration),$(fea)"
+FEATURES := "--features=log_$(log),level_$(level),configuration_$(configuration),$(fea)"
 
 $(BIN): build
 
