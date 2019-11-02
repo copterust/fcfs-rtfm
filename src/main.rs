@@ -53,12 +53,9 @@ const APP: () = {
         DEBUG_PIN: DebugPinT,
         // Option is needed to be able to change it in-flight (Option::take)
         CHANNEL: Option<communication::Channel>,
-        TELE: telemetry::Telemetry,
         RX: crate::boards::RxUsart,
         PRODUCER: crate::spsc::Tx,
         CONSUMER: crate::spsc::Rx,
-        #[init(crate::cmd::Cmd::new())]
-        CMD: crate::cmd::Cmd,
         #[init(crate::types::Control::new())]
         CONTROL: crate::types::Control,
         #[init(crate::types::State::new())]
@@ -132,7 +129,6 @@ const APP: () = {
         init::LateResources { EXTIH: conf.extih,
                               AHRS: ahrs,
                               CHANNEL: Some(new_channel),
-                              TELE: telemetry::create(),
                               LOG: log,
                               DEBUG_PIN: debug_pin,
                               RX: rx,
@@ -140,14 +136,28 @@ const APP: () = {
                               CONSUMER: consumer }
     }
 
-    #[idle(resources=[CMD, CONSUMER, CONTROL])]
+    #[idle(resources=[CONSUMER, CONTROL, CHANNEL])]
     fn idle(mut ctx: idle::Context) -> ! {
-        let cmd = ctx.resources.CMD;
+        static mut CMD: cmd::Cmd = cmd::create();
+        static TELE: telemetry::Telemetry = telemetry::create();
         loop {
             if let Some(byte) = ctx.resources.CONSUMER.dequeue() {
-                ctx.resources.CONTROL.lock(|c| {
-                    cmd.try_parse(byte, c);
+                let (requests) = ctx.resources.CONTROL.lock(|c| {
+                    let requests = CMD.feed(byte, c);
+                    requests
                 });
+                if requests.status {
+                    // XXX: this is ugly; We wouldalso like to pass control itself
+                    //      to TELE.
+                    let coefs = ctx.resources.CONTROL.lock(|c| c.coefficients() );
+                    ctx.resources.CHANNEL.lock(|shared_channel| {
+                        let maybe_channel = shared_channel.take();
+                        if let Some(channel) = maybe_channel {
+                            let new_channel = TELE.coefficients(&coefs, channel);
+                            *shared_channel = Some(new_channel);
+                        }
+                    });
+                }
             }
         }
     }
@@ -170,14 +180,14 @@ const APP: () = {
 
     #[task(binds=EXTI15_10,
            resources = [EXTIH, AHRS, LOG, DEBUG_PIN,
-                        TELE, CHANNEL, CONTROL, STATE])]
+                        CHANNEL, CONTROL, STATE])]
     fn handle_mpu_drone(ctx: handle_mpu_drone::Context) {
         #[cfg(configuration = "configuration_drone")]
         handle_mpu(ctx);
     }
     #[task(binds=EXTI0,
            resources = [EXTIH, AHRS, LOG, DEBUG_PIN,
-                        TELE, CHANNEL, CONTROL, STATE])]
+                        CHANNEL, CONTROL, STATE])]
     fn handle_mpu_dev(ctx: handle_mpu_dev::Context) {
         #[cfg(configuration = "configuration_dev")]
         handle_mpu(ctx);
@@ -192,9 +202,9 @@ fn handle_mpu(mut ctx: CtxType) {
     let _ = ctx.resources.DEBUG_PIN.set_high();
     let mut ahrs = ctx.resources.AHRS;
     let mut log = ctx.resources.LOG;
-    let tele = ctx.resources.TELE;
     let mut state = ctx.resources.STATE;
     let control = ctx.resources.CONTROL;
+    static TELE: telemetry::Telemetry = telemetry::create();
 
     match ahrs.estimate() {
         Ok(result) => {
@@ -206,7 +216,7 @@ fn handle_mpu(mut ctx: CtxType) {
             if control.telemetry {
                 let mut maybe_channel = ctx.resources.CHANNEL.take();
                 if let Some(channel) = maybe_channel {
-                    let new_channel = tele.report(&state, channel);
+                    let new_channel = TELE.state(&state, channel);
                     *ctx.resources.CHANNEL = Some(new_channel);
                 }
             }

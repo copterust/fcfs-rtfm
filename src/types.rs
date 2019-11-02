@@ -52,4 +52,32 @@ impl Control {
             }
         }
     }
+
+    #[inline]
+    pub fn coefficients(&self) -> [f32; 6] {
+        [self.pk, self.ik, self.dk,
+         self.pitch_pk,
+         self.roll_pk,
+         self.yaw_pk]
+    }
+}
+
+pub struct Requests {
+    pub status: bool,
+    // TODO: reset, boot
+}
+
+impl Requests {
+    #[inline]
+    pub const fn new() -> Self {
+        Requests {
+            status: false
+        }
+    }
+}
+
+impl Default for Requests {
+    fn default() -> Self {
+        Requests::new()
+    }
 }
