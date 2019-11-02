@@ -69,10 +69,10 @@ impl Cmd {
         if let Some(word) = self.push(byte) {
             parse!(word:
                    ["tmon"] => {
-                       control.enable_telemetry();
+                       control.telemetry = true;
                    },
                    ["tmoff"] => {
-                       control.disable_telemetry();
+                       control.telemetry = false;
                    }
             );
         }

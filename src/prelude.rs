@@ -6,3 +6,5 @@ pub use hal::prelude::*;
 pub use hal::serial::{Rx, Tx};
 pub use hal::spi::Spi;
 pub use hal::time::{Bps, Hertz, KiloHertz};
+
+pub use dcmimu::EulerAngles;

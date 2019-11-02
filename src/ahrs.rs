@@ -1,9 +1,10 @@
 use crate::chrono::Chrono;
+use crate::prelude::*;
+
 use dcmimu::DCMIMU;
 use ehal::blocking::delay::DelayMs;
 
 use ehal::blocking::spi;
-use libm::{asinf, atan2f, fabsf};
 use mpu9250::Mpu9250;
 
 // Magnetometer calibration parameters
@@ -80,17 +81,25 @@ pub struct AhrsResult {
     pub biased_gyro: [f32; 3],
 }
 
-pub trait AhrsShortResult {
-    fn short_results(&self) -> [f32; 10];
-}
+impl AhrsResult {
+    #[inline]
+    pub const fn new() -> Self {
+        AhrsResult {
+            accel: [0.0, 0.0, 0.0],
+            gyro: [0.0, 0.0, 0.0],
+            dt_s: 0.0,
+            ypr: EulerAngles {
+                yaw: 0.0,
+                pitch: 0.0,
+                roll: 0.0
+            },
+            biased_gyro: [0.0, 0.0, 0.0]
+        }
+    }
 
-pub trait AhrsLongResult {
-    fn long_results(&self) -> [f32; 13];
-}
-
-impl AhrsShortResult for AhrsResult {
     // ax,ay,az,gx,gy,gz,dt_s,y,p,r
-    fn short_results(&self) -> [f32; 10] {
+    #[inline]
+    pub fn short_results(&self) -> [f32; 10] {
         [self.accel[0],
          self.accel[1],
          self.accel[2],
@@ -102,11 +111,10 @@ impl AhrsShortResult for AhrsResult {
          self.ypr.pitch,
          self.ypr.roll]
     }
-}
 
-impl AhrsLongResult for AhrsResult {
     // ax,ay,az,gx,gy,gz,dt_s,y,p,r,bgx,bgy,bgz
-    fn long_results(&self) -> [f32; 13] {
+    #[inline]
+    pub fn long_results(&self) -> [f32; 13] {
         [self.accel[0],
          self.accel[1],
          self.accel[2],

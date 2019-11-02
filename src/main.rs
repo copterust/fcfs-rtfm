@@ -16,6 +16,7 @@ mod ahrs;
 mod boards;
 mod chrono;
 mod cmd;
+mod controllers;
 mod mixer;
 mod prelude;
 mod spsc;
@@ -54,12 +55,14 @@ const APP: () = {
         CHANNEL: Option<communication::Channel>,
         TELE: telemetry::Telemetry,
         RX: crate::boards::RxUsart,
-        #[init(crate::cmd::Cmd::new())]
-        CMD: crate::cmd::Cmd,
         PRODUCER: crate::spsc::Tx,
         CONSUMER: crate::spsc::Rx,
+        #[init(crate::cmd::Cmd::new())]
+        CMD: crate::cmd::Cmd,
         #[init(crate::types::Control::new())]
         CONTROL: crate::types::Control,
+        #[init(crate::types::State::new())]
+        STATE: crate::types::State,
     }
 
     #[init()]
@@ -137,10 +140,9 @@ const APP: () = {
                               CONSUMER: consumer }
     }
 
-    #[idle(resources=[CMD, CONSUMER, LOG, CONTROL])]
+    #[idle(resources=[CMD, CONSUMER, CONTROL])]
     fn idle(mut ctx: idle::Context) -> ! {
         let cmd = ctx.resources.CMD;
-        let mut log = ctx.resources.LOG;
         loop {
             if let Some(byte) = ctx.resources.CONSUMER.dequeue() {
                 ctx.resources.CONTROL.lock(|c| {
@@ -167,13 +169,15 @@ const APP: () = {
     }
 
     #[task(binds=EXTI15_10,
-           resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL, CONTROL])]
+           resources = [EXTIH, AHRS, LOG, DEBUG_PIN,
+                        TELE, CHANNEL, CONTROL, STATE])]
     fn handle_mpu_drone(ctx: handle_mpu_drone::Context) {
         #[cfg(configuration = "configuration_drone")]
         handle_mpu(ctx);
     }
     #[task(binds=EXTI0,
-           resources = [EXTIH, AHRS, LOG, DEBUG_PIN, TELE, CHANNEL, CONTROL])]
+           resources = [EXTIH, AHRS, LOG, DEBUG_PIN,
+                        TELE, CHANNEL, CONTROL, STATE])]
     fn handle_mpu_dev(ctx: handle_mpu_dev::Context) {
         #[cfg(configuration = "configuration_dev")]
         handle_mpu(ctx);
@@ -189,13 +193,20 @@ fn handle_mpu(mut ctx: CtxType) {
     let mut ahrs = ctx.resources.AHRS;
     let mut log = ctx.resources.LOG;
     let tele = ctx.resources.TELE;
+    let mut state = ctx.resources.STATE;
+    let control = ctx.resources.CONTROL;
 
     match ahrs.estimate() {
         Ok(result) => {
-            if ctx.resources.CONTROL.telemetry() {
+            state.ahrs = result;
+            let (cmd, errors) = controllers::body_rate(&state, &control);
+            state.errors = errors;
+            state.cmd = cmd;
+
+            if control.telemetry {
                 let mut maybe_channel = ctx.resources.CHANNEL.take();
                 if let Some(channel) = maybe_channel {
-                    let new_channel = tele.report(&result, channel);
+                    let new_channel = tele.report(&state, channel);
                     *ctx.resources.CHANNEL = Some(new_channel);
                 }
             }

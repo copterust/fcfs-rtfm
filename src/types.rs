@@ -1,33 +1,55 @@
 use crate::ahrs::AhrsResult;
+use crate::prelude::*;
 
 pub struct State {
     pub ahrs: AhrsResult,
+    pub cmd: [f32; 3],
+    pub errors: [f32; 3],
+}
+
+impl State {
+    #[inline]
+    pub const fn new() -> Self {
+        State {
+            ahrs: AhrsResult::new(),
+            cmd: [0.0, 0.0, 0.0],
+            errors: [0.0, 0.0, 0.0]
+        }
+    }
 }
 
 pub struct Control {
-    telemetry: bool,
+    // permanent part
+    pub telemetry: bool,
+    pub pk: f32,
+    pub ik: f32,
+    pub dk: f32,
+    pub pitch_pk: f32,
+    pub roll_pk: f32,
+    pub yaw_pk: f32,
+    pub thrust: f32,
+    // temp, as this has to be controlled from top level ctrl
+    // XXX: units via naming? foooo...
+    pub target_degrees: EulerAngles,
 }
 
 impl Control {
     #[inline]
     pub const fn new() -> Self {
         Control {
-            telemetry: false
+            telemetry: false,
+            pk: 0.0,
+            ik: 0.0,
+            dk: 0.0,
+            pitch_pk: 0.0,
+            roll_pk: 0.0,
+            yaw_pk: 0.0,
+            thrust: 0.0,
+            target_degrees: EulerAngles {
+                yaw: 0.0,
+                pitch: 0.0,
+                roll: 0.0
+            }
         }
-    }
-
-    #[inline]
-    pub fn enable_telemetry(&mut self) {
-        self.telemetry = true;
-    }
-
-    #[inline]
-    pub fn disable_telemetry(&mut self) {
-        self.telemetry = false;
-    }
-
-    #[inline]
-    pub fn telemetry(&self) -> bool {
-        self.telemetry
     }
 }
