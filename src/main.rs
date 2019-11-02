@@ -23,9 +23,8 @@ mod spsc;
 mod logging;
 mod communication;
 mod telemetry;
-#[macro_use]
-mod utils;
 mod types;
+mod utils;
 
 use core::fmt::Write;
 use cortex_m_rt::{exception, ExceptionFrame};
@@ -140,25 +139,13 @@ const APP: () = {
 
     #[idle(resources=[CMD, CONSUMER, LOG, CONTROL])]
     fn idle(mut ctx: idle::Context) -> ! {
-        // TODO: move out
         let cmd = ctx.resources.CMD;
         let mut log = ctx.resources.LOG;
         loop {
             if let Some(byte) = ctx.resources.CONSUMER.dequeue() {
-                if let Some(word) = cmd.push(byte) {
-                    parse!(word:
-                           ["tmon"] => {
-                               ctx.resources.CONTROL.lock(|c| {
-                                   c.enable_telemetry()
-                               })
-                           },
-                           ["tmoff"] => {
-                               ctx.resources.CONTROL.lock(|c| {
-                                   c.disable_telemetry()
-                               })
-                           }
-                    );
-                }
+                ctx.resources.CONTROL.lock(|c| {
+                    cmd.try_parse(byte, c);
+                });
             }
         }
     }
