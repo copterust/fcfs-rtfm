@@ -18,6 +18,7 @@ impl State {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Control {
     // permanent part
     pub telemetry: bool,

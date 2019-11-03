@@ -150,18 +150,16 @@ const APP: () = {
         static TELE: telemetry::Telemetry = telemetry::create();
         loop {
             if let Some(byte) = ctx.resources.CONSUMER.dequeue() {
-                let (requests) = ctx.resources.CONTROL.lock(|c| {
+                let (requests, current_control) = ctx.resources.CONTROL.lock(|c| {
                     let requests = CMD.feed(byte, c);
-                    requests
+                    (requests, c.clone())
                 });
                 if requests.status {
-                    // XXX: this is ugly; We wouldalso like to pass control itself
-                    //      to TELE.
-                    let coefs = ctx.resources.CONTROL.lock(|c| c.coefficients() );
                     ctx.resources.CHANNEL.lock(|shared_channel| {
                         let maybe_channel = shared_channel.take();
                         if let Some(channel) = maybe_channel {
-                            let new_channel = TELE.coefficients(&coefs, channel);
+                            let new_channel = TELE.control(&current_control,
+                                                           channel);
                             *shared_channel = Some(new_channel);
                         }
                     });

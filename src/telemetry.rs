@@ -28,13 +28,13 @@ impl Telemetry {
     }
 
     #[inline]
-    pub fn coefficients(&self, coefs: &[f32], channel: Channel) -> Channel {
+    pub fn control(&self, control: &types::Control, channel: Channel) -> Channel {
         channel.send(|buffer| {
             // ct:pk,ik,dk,pitch_pk,roll_pk,yaw_pk;
             buffer.push('c' as u8);
             buffer.push('t' as u8);
             buffer.push(':' as u8);
-            for f in coefs.into_iter() {
+            for f in control.coefficients().into_iter() {
                 let mut b = ryu::Buffer::new();
                 let s = b.format(*f);
                 buffer.extend_from_slice(s.as_bytes());

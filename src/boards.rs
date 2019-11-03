@@ -148,10 +148,10 @@ mod defs {
         {
             #[cfg_attr(rustfmt, rustfmt_skip)]
             let map = [
-                [ 1., -1., -1., 1.], /* rear right  */
+                [ 1., -1., -1., 1.], /* rear right */
                 [1.,  1.,  1., 1.], /* front right */
-                [ -1., -1., -1., 1.], /* rear left   */
-                [-1.,  1.,  1., 1.] /* front left  */
+                [ -1., -1., -1., 1.], /* rear left */
+                [-1.,  1.,  1., 1.] /* front left */
             ];
             let pin = (m1_rear_right,
                        m2_front_right,
