@@ -1,80 +1,14 @@
 use crate::boards::*;
 use hal::timer;
 
-pub type T = impl MotorCtrl;
-
-pub fn create<F>(quad_tim: QuadMotorsTim,
-                 quad_pins: QuadMotors,
-                 plus2_tim: Add2MotorsTim,
-                 plus2_pins: Add2Motors,
-                 clocks: hal::rcc::Clocks,
-                 freq: F)
-                 -> T
-    where F: Into<Hertz<u32>>
-{
-    create6(quad_tim, quad_pins, plus2_tim, plus2_pins, clocks, freq.into())
-}
-
-// TODO: modify alt-stm32f30x-hal to provide Common traits for pins,
-//       using assoc types and `impl trait`.
-//       then we can turn this macro to normal func
-
-macro_rules! pwm {
-    ($pin: expr,
-     $ch: expr
-    ) => {{
-        let mut p = $pin.pull_type(PullUp).to_pwm($ch, MediumSpeed);
-        p.enable();
-        p
-    }};
-}
-
-// TODO: add create4 and features
-fn create6(quad_tim: QuadMotorsTim,
-           quad_pins: QuadMotors,
-           plus2_tim: Add2MotorsTim,
-           plus2_pins: Add2Motors,
-           clocks: hal::rcc::Clocks,
-           freq: Hertz<u32>)
-           -> impl MotorCtrl {
-    let f = freq;
-    // MOTORS:
-    // pa0 -- pa3
-    let ((ch1, ch2, ch3, ch4), mut timer2) =
-        timer::tim2::Timer::new(quad_tim, f, clocks).use_pwm();
-    let mut m1_rear_right = pwm!(quad_pins.0, ch1);
-    let mut m2_front_right = pwm!(quad_pins.1, ch2);
-    let mut m3_rear_left = pwm!(quad_pins.2, ch3);
-    let mut m4_front_left = pwm!(quad_pins.3, ch4);
-    timer2.enable();
-
-    let ((ch5, ch6, _, _), mut timer3) =
-        timer::tim3::Timer::new(plus2_tim, f, clocks).use_pwm();
-    let mut m5_left = pwm!(plus2_pins.0, ch5);
-    let mut m6_right = pwm!(plus2_pins.1, ch6);
-    timer3.enable();
-
-    #[cfg_attr(rustfmt, rustfmt_skip)]
-    let map = [
-        [0.567, -0.815, -1.0, 1.0], /* rear right */
-        [0.567, 0.815, -1.0, 1.0], /* front right */
-        [-0.567, -0.815, 1.0, 1.0], /* rear left */
-        [-0.567, 0.815, 1.0, 1.0], /* front left */
-        [-1.0, -0.0, -1.0, 1.0], /* left */
-        [1.0, -0.0, 1.0, 1.0] /* right */
-    ];
-    Mixer { map,
-            max_duty: m1_rear_right.get_max_duty() as f32,
-            pin: (m1_rear_right,
-                  m2_front_right,
-                  m3_rear_left,
-                  m4_front_left,
-                  m5_left,
-                  m6_right) }
-}
 
 pub trait MotorCtrl {
     fn set_duty(&mut self, x: f32, y: f32, z: f32, thrust: f32);
+}
+
+impl MotorCtrl for () {
+    // dummy
+    fn set_duty(&mut self, x: f32, y: f32, z: f32, thrust: f32) {}
 }
 
 pub struct Mixer<M, P> {

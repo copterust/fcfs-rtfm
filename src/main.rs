@@ -15,14 +15,14 @@ use panic_abort;
 mod ahrs;
 mod boards;
 mod chrono;
+mod communication;
 mod cmd;
 mod controllers;
+#[macro_use]
+mod logging;
 mod mixer;
 mod prelude;
 mod spsc;
-#[macro_use]
-mod logging;
-mod communication;
 mod telemetry;
 mod types;
 mod utils;
@@ -42,6 +42,7 @@ use rtfm::app;
 use boards::*;
 use prelude::*;
 use telemetry::Telemetry;
+use mixer::MotorCtrl;
 
 #[app(device = crate::boards::mydevice, peripherals = true)]
 const APP: () = {
@@ -56,6 +57,7 @@ const APP: () = {
         RX: crate::boards::RxUsart,
         PRODUCER: crate::spsc::Tx,
         CONSUMER: crate::spsc::Rx,
+        MOTORS: crate::boards::Motors,
         #[init(crate::types::Control::new())]
         CONTROL: crate::types::Control,
         #[init(crate::types::State::new())]
@@ -118,6 +120,11 @@ const APP: () = {
         let mut chrono = chrono::rtfm_stopwatch(clocks.sysclk());
         let mut ahrs = ahrs::AHRS::create(mpu9250, &mut delay, chrono);
         info!(log, "ahrs ok");
+        // motors
+        let motors = boards::setup_motors(conf.motor_pins,
+                                          conf.motor_aux,
+                                          clocks,
+                                          Hertz(32_000u32));
 
         info!(log, "ready");
         ahrs.setup_time();
@@ -133,7 +140,8 @@ const APP: () = {
                               DEBUG_PIN: debug_pin,
                               RX: rx,
                               PRODUCER: producer,
-                              CONSUMER: consumer }
+                              CONSUMER: consumer,
+                              MOTORS: motors }
     }
 
     #[idle(resources=[CONSUMER, CONTROL, CHANNEL])]
@@ -180,14 +188,14 @@ const APP: () = {
 
     #[task(binds=EXTI15_10,
            resources = [EXTIH, AHRS, LOG, DEBUG_PIN,
-                        CHANNEL, CONTROL, STATE])]
+                        CHANNEL, CONTROL, STATE, MOTORS])]
     fn handle_mpu_drone(ctx: handle_mpu_drone::Context) {
         #[cfg(configuration = "configuration_drone")]
         handle_mpu(ctx);
     }
     #[task(binds=EXTI0,
            resources = [EXTIH, AHRS, LOG, DEBUG_PIN,
-                        CHANNEL, CONTROL, STATE])]
+                        CHANNEL, CONTROL, STATE, MOTORS])]
     fn handle_mpu_dev(ctx: handle_mpu_dev::Context) {
         #[cfg(configuration = "configuration_dev")]
         handle_mpu(ctx);
@@ -212,6 +220,8 @@ fn handle_mpu(mut ctx: CtxType) {
             let (cmd, errors) = controllers::body_rate(&state, &control);
             state.errors = errors;
             state.cmd = cmd;
+
+            ctx.resources.MOTORS.set_duty(cmd[0], cmd[1], cmd[2], control.thrust);
 
             if control.telemetry {
                 let mut maybe_channel = ctx.resources.CHANNEL.take();

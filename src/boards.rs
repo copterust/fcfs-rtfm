@@ -1,14 +1,16 @@
 pub use crate::prelude::*;
 
 pub struct BoardConfiguration<DPT,
- SPI,
- SpiPins,
- NPT,
- Usart,
- UsartPins,
- TxCh,
- GP,
- ExtiNum>
+                              SPI,
+                              SpiPins,
+                              NPT,
+                              Usart,
+                              UsartPins,
+                              TxCh,
+                              GP,
+                              ExtiNum,
+                              MotorPins,
+                              MotorAux>
     where ExtiNum: hal::exti::ExternalInterrupt,
           GP: hal::gpio::GPIOPin
 {
@@ -20,6 +22,8 @@ pub struct BoardConfiguration<DPT,
     pub usart_pins: UsartPins,
     pub tx_ch: TxCh,
     pub extih: hal::exti::BoundInterrupt<GP, ExtiNum>,
+    pub motor_pins: MotorPins,
+    pub motor_aux: MotorAux
 }
 
 pub struct Peripherals {
@@ -34,6 +38,20 @@ pub struct Peripherals {
     pub gpiob: hal::gpio::Gpiob,
     pub gpioc: hal::gpio::Gpioc,
     pub syscfg: hal::syscfg::Syscfg,
+    pub tim2: hal::pac::TIM2,
+    pub tim3: hal::pac::TIM3,
+}
+
+pub type Motors = impl crate::mixer::MotorCtrl;
+
+macro_rules! pwm {
+    ($pin: expr,
+     $ch: expr
+    ) => {{
+        let mut p = $pin.pull_type(PullUp).to_pwm($ch, MediumSpeed);
+        p.enable();
+        p
+    }};
 }
 
 #[cfg(configuration = "configuration_drone")]
@@ -56,6 +74,13 @@ mod defs {
     pub type RxUsart = Rx<USART>;
     pub type TxCh = hal::dma::dma1::C7;
     pub type ExtiNum = hal::exti::EXTI13;
+    pub type MotorPins = (gpio::PA0<PullNone, gpio::Input>,
+                       gpio::PA1<PullNone, gpio::Input>,
+                       gpio::PA2<PullNone, gpio::Input>,
+                       gpio::PA3<PullNone, gpio::Input>,
+                       gpio::PA6<PullNone, gpio::Input>,
+                       gpio::PA7<PullNone, gpio::Input>);
+    pub type MotorAux = (hal::pac::TIM2, hal::pac::TIM3);
 
     type Res = BoardConfiguration<DT,
                                   SpiT,
@@ -65,7 +90,9 @@ mod defs {
                                   UsartPins,
                                   TxCh,
                                   MpuIntPin,
-                                  ExtiNum>;
+                                  ExtiNum,
+                                  MotorPins,
+                                  MotorAux>;
     pub fn configure(mut device: Peripherals) -> Res {
         let scl_sck = device.gpiob.pb3;
         let ad0_sdo_miso = device.gpiob.pb4;
@@ -75,6 +102,19 @@ mod defs {
         let extih =
             device.exti.EXTI13.bind(mpu_interrupt_pin, &mut device.syscfg);
 
+        let motor_pins = (
+            device.gpioa.pa0,
+            device.gpioa.pa1,
+            device.gpioa.pa2,
+            device.gpioa.pa3,
+            device.gpioa.pa6,
+            device.gpioa.pa7
+        );
+        let motor_aux = (
+            device.tim2,
+            device.tim3
+        );
+
         BoardConfiguration { debug_pin: device.gpioc.pc15,
                              spi: device.spi1,
                              spi_pins: (scl_sck, ad0_sdo_miso, sda_sdi_mosi),
@@ -83,7 +123,52 @@ mod defs {
                              usart_pins: (device.gpioa.pa14,
                                           device.gpioa.pa15),
                              tx_ch: device.dma_channels.7,
-                             extih }
+                             extih,
+                             motor_pins,
+                             motor_aux}
+    }
+
+    pub fn setup_motors(motor_pins: MotorPins,
+                        motor_aux: MotorAux,
+                        clocks: hal::rcc::Clocks,
+                        freq: Hertz<u32>) -> Motors {
+        // MOTORS:
+        // pa0 -- pa3
+        let ((ch1, ch2, ch3, ch4), mut timer2) = hal::timer::tim2::Timer::new(
+            motor_aux.0, freq, clocks).use_pwm();
+        let mut m1_rear_right = pwm!(motor_pins.0, ch1);
+        let mut m2_front_right = pwm!(motor_pins.1, ch2);
+        let mut m3_rear_left = pwm!(motor_pins.2, ch3);
+        let mut m4_front_left = pwm!(motor_pins.3, ch4);
+        timer2.enable();
+
+        // TODO: add conf guard
+        let ((ch5, ch6, _, _), mut timer3) = hal::timer::tim3::Timer::new(
+            motor_aux.1, freq, clocks).use_pwm();
+        let mut m5_left = pwm!(motor_pins.4, ch5);
+        let mut m6_right = pwm!(motor_pins.5, ch6);
+        timer3.enable();
+
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        let map = [
+            [0.567, -0.815, -1.0, 1.0], /* rear right */
+            [0.567, 0.815, -1.0, 1.0], /* front right */
+            [-0.567, -0.815, 1.0, 1.0], /* rear left */
+            [-0.567, 0.815, 1.0, 1.0], /* front left */
+            [-1.0, -0.0, -1.0, 1.0], /* left */
+            [1.0, -0.0, 1.0, 1.0] /* right */
+        ];
+
+        crate::mixer::Mixer {
+            map,
+            max_duty: m1_rear_right.get_max_duty() as f32,
+            pin: (m1_rear_right,
+                  m2_front_right,
+                  m3_rear_left,
+                  m4_front_left,
+                  m5_left,
+                  m6_right)
+        }
     }
 }
 
@@ -106,6 +191,8 @@ mod defs {
     pub type RxUsart = Rx<USART>;
     pub type TxCh = hal::dma::dma1::C7;
     pub type ExtiNum = hal::exti::EXTI0;
+    pub type MotorPins = ();
+    pub type MotorAux = ();
 
     type Res = BoardConfiguration<DT,
                                   SpiT,
@@ -115,7 +202,9 @@ mod defs {
                                   UsartPins,
                                   TxCh,
                                   MpuIntPin,
-                                  ExtiNum>;
+                                  ExtiNum,
+                                  MotorPins,
+                                  MotorAux>;
     pub fn configure(mut device: Peripherals) -> Res {
         let scl_sck = device.gpiob.pb3;
         let ad0_sdo_miso = device.gpiob.pb4;
@@ -133,7 +222,17 @@ mod defs {
                              usart_pins: (device.gpioa.pa2,
                                           device.gpioa.pa15),
                              tx_ch: device.dma_channels.7,
-                             extih }
+                             extih,
+                             motor_pins: (),
+                             motor_aux: ()}
+    }
+
+    pub fn setup_motors(motor_pins: MotorPins,
+                        motor_aux: MotorAux,
+                        clocks: hal::rcc::Clocks,
+                        freq: Hertz<u32>) -> Motors {
+        // no motors in Dev
+        ()
     }
 }
 
@@ -154,16 +253,6 @@ pub type Dev = mpu9250::SpiDevice<SPI, NcsPinT>;
 pub type MPU9250 = mpu9250::Mpu9250<Dev, mpu9250::Imu>;
 
 pub type DebugPinT = DebugPinDef<PullNone, Output<PushPull, HighSpeed>>;
-
-pub type QuadMotors = (gpio::PA0<PullNone, gpio::Input>,
-                       gpio::PA1<PullNone, gpio::Input>,
-                       gpio::PA2<PullNone, gpio::Input>,
-                       gpio::PA3<PullNone, gpio::Input>);
-pub type QuadMotorsTim = hal::pac::TIM2;
-
-pub type Add2MotorsTim = hal::pac::TIM3;
-pub type Add2Motors =
-    (gpio::PA6<PullNone, gpio::Input>, gpio::PA7<PullNone, gpio::Input>);
 
 pub mod mydevice {
     pub use super::Peripherals;
@@ -198,7 +287,10 @@ pub mod mydevice {
                           gpiob,
                           gpioc,
                           syscfg,
-                          clocks }
+                          clocks,
+                          tim2: device.TIM2,
+                          tim3: device.TIM3
+            }
         }
     }
 
