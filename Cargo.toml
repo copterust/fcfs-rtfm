@@ -80,11 +80,15 @@ level_debug = []
 level_error = []
 configuration_drone = []
 configuration_dev = []
+motors_quad = []
+motors_hex = []
 default = ["log_semihosting",
            "level_debug",
-           "configuration_dev"]
+           "configuration_dev",
+           "motors_quad"]
 
 [package.metadata.feature_groups]
 log = ["log_semihosting", "log_dummy", "log_itm"]
 level = ["level_debug", "level_info", "level_error"]
 configuration = ["configuration_drone", "configuration_dev"]
+motors = ["motors_quad", "motors_hex"]

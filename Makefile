@@ -11,7 +11,8 @@ fea :=
 log := semihosting
 level := info
 configuration := dev
-FEATURES := "--features=log_$(log),level_$(level),configuration_$(configuration),$(fea)"
+motors := quad
+FEATURES := "--features=log_$(log),level_$(level),configuration_$(configuration),motors_$(motors),$(fea)"
 
 $(BIN): build
 

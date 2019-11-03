@@ -142,32 +142,57 @@ mod defs {
         let mut m4_front_left = pwm!(motor_pins.3, ch4);
         timer2.enable();
 
-        // TODO: add conf guard
-        let ((ch5, ch6, _, _), mut timer3) = hal::timer::tim3::Timer::new(
-            motor_aux.1, freq, clocks).use_pwm();
-        let mut m5_left = pwm!(motor_pins.4, ch5);
-        let mut m6_right = pwm!(motor_pins.5, ch6);
-        timer3.enable();
+        let max_duty = m1_rear_right.get_max_duty() as f32;
 
-        #[cfg_attr(rustfmt, rustfmt_skip)]
-        let map = [
-            [0.567, -0.815, -1.0, 1.0], /* rear right */
-            [0.567, 0.815, -1.0, 1.0], /* front right */
-            [-0.567, -0.815, 1.0, 1.0], /* rear left */
-            [-0.567, 0.815, 1.0, 1.0], /* front left */
-            [-1.0, -0.0, -1.0, 1.0], /* left */
-            [1.0, -0.0, 1.0, 1.0] /* right */
-        ];
+        #[cfg(motors = "motors_quad")]
+        {
+            #[cfg_attr(rustfmt, rustfmt_skip)]
+            let map = [
+                [ 1., -1., -1., 1.], /* rear right  */
+                [1.,  1.,  1., 1.], /* front right */
+                [ -1., -1., -1., 1.], /* rear left   */
+                [-1.,  1.,  1., 1.] /* front left  */
+            ];
+            let pin = (m1_rear_right,
+                       m2_front_right,
+                       m3_rear_left,
+                       m4_front_left);
+            crate::mixer::Mixer {
+                map,
+                pin,
+                max_duty,
+            }
+        }
 
-        crate::mixer::Mixer {
-            map,
-            max_duty: m1_rear_right.get_max_duty() as f32,
-            pin: (m1_rear_right,
-                  m2_front_right,
-                  m3_rear_left,
-                  m4_front_left,
-                  m5_left,
-                  m6_right)
+        #[cfg(motors = "motors_hex")]
+        {
+            let ((ch5, ch6, _, _), mut timer3) = hal::timer::tim3::Timer::new(
+                motor_aux.1, freq, clocks).use_pwm();
+            let mut m5_left = pwm!(motor_pins.4, ch5);
+            let mut m6_right = pwm!(motor_pins.5, ch6);
+            timer3.enable();
+
+            #[cfg_attr(rustfmt, rustfmt_skip)]
+            let map = [
+                [0.567, -0.815, -1.0, 1.0], /* rear right */
+                [0.567, 0.815, -1.0, 1.0], /* front right */
+                [-0.567, -0.815, 1.0, 1.0], /* rear left */
+                [-0.567, 0.815, 1.0, 1.0], /* front left */
+                [-1.0, -0.0, -1.0, 1.0], /* left */
+                [1.0, -0.0, 1.0, 1.0] /* right */
+            ];
+
+            let pin = (m1_rear_right,
+                       m2_front_right,
+                       m3_rear_left,
+                       m4_front_left,
+                       m5_left,
+                       m6_right);
+            crate::mixer::Mixer {
+                map,
+                pin,
+                max_duty,
+            }
         }
     }
 }
@@ -272,10 +297,10 @@ pub mod mydevice {
             let dma_channels = device.DMA1.split(&mut rcc.ahb);
             let mut flash = device.FLASH.constrain();
             let clocks = rcc.cfgr
-                            .sysclk(64.mhz())
-                            .pclk1(32.mhz())
-                            .pclk2(32.mhz())
-                            .freeze(&mut flash.acr);
+                .sysclk(64.mhz())
+                .pclk1(32.mhz())
+                .pclk2(32.mhz())
+                .freeze(&mut flash.acr);
 
             Peripherals { spi1: device.SPI1,
                           spi2: device.SPI2,
