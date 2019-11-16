@@ -28,9 +28,7 @@ version = "0.6.1"
 features = ["itm", "semihosting"]
 
 [dependencies.cortex-m-rtfm]
-version = "0.5.0-beta.1"
-# git = "https://github.com/rtfm-rs/cortex-m-rtfm"
-# rev = "38306389ea4d8fadac8565e681887740912e14bd"
+version = "0.5.0"
 
 [dependencies.mpu9250]
 version = "0.20"
