@@ -14,6 +14,7 @@ use panic_abort;
 
 mod ahrs;
 mod boards;
+mod bootloader;
 mod chrono;
 mod communication;
 mod cmd;
@@ -42,6 +43,7 @@ use rtfm::app;
 use boards::*;
 use prelude::*;
 use telemetry::Telemetry;
+use bootloader::Bootloader;
 use mixer::MotorCtrl;
 
 #[app(device = crate::boards::mydevice, peripherals = true)]
@@ -62,6 +64,8 @@ const APP: () = {
         control: crate::types::Control,
         #[init(crate::types::State::new())]
         state: crate::types::State,
+        #[init(crate::bootloader::create())]
+        bootloader: crate::bootloader::T,
     }
 
     #[init()]
@@ -144,28 +148,38 @@ const APP: () = {
                               motors }
     }
 
-    #[idle(resources=[consumer, control, channel])]
+    #[idle(resources=[consumer, control, channel, bootloader])]
     fn idle(mut ctx: idle::Context) -> ! {
         static mut CMD: cmd::Cmd = cmd::create();
         static TELE: telemetry::Telemetry = telemetry::create();
         let idle::Resources {mut consumer,
                              mut channel,
-                             mut control} = ctx.resources;
+                             mut control,
+                             mut bootloader } = ctx.resources;
         loop {
             if let Some(byte) = consumer.dequeue() {
                 let (requests, current_control) = control.lock(|c| {
                     let requests = CMD.feed(byte, c);
                     (requests, c.clone())
                 });
-                if requests.status {
-                    channel.lock(|shared_channel| {
-                        let maybe_channel = shared_channel.take();
-                        if let Some(channel) = maybe_channel {
-                            let new_channel = TELE.control(&current_control,
-                                                           channel);
-                            *shared_channel = Some(new_channel);
-                        }
-                    });
+                match requests {
+                    Some(types::Requests::Status) => {
+                        channel.lock(|shared_channel| {
+                            let maybe_channel = shared_channel.take();
+                            if let Some(channel) = maybe_channel {
+                                let new_channel = TELE.control(&current_control,
+                                                               channel);
+                                *shared_channel = Some(new_channel);
+                            }
+                        });
+                    },
+                    Some(types::Requests::Boot) => {
+                        bootloader.to_bootloader();
+                    },
+                    Some(types::Requests::Reset) => {
+                        bootloader.system_reset();
+                    },
+                    _ => {}
                 }
             }
         }

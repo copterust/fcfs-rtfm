@@ -63,22 +63,8 @@ impl Control {
     }
 }
 
-pub struct Requests {
-    pub status: bool,
-    // TODO: reset, boot
-}
-
-impl Requests {
-    #[inline]
-    pub const fn new() -> Self {
-        Requests {
-            status: false
-        }
-    }
-}
-
-impl Default for Requests {
-    fn default() -> Self {
-        Requests::new()
-    }
+pub enum Requests {
+    Status,
+    Reset,
+    Boot
 }

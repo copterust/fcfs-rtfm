@@ -74,8 +74,8 @@ impl Cmd {
     }
 
     #[inline]
-    pub fn feed(&mut self, byte: u8, control: &mut types::Control) -> types::Requests {
-        let mut requests = types::Requests::default();
+    pub fn feed(&mut self, byte: u8, control: &mut types::Control) -> Option<types::Requests> {
+        let mut requests = None;
         if let Some(word) = self.push(byte) {
             // XXX: maybe return new control, instead of mutating?
             parse!(word:
@@ -110,7 +110,13 @@ impl Cmd {
                        control.target_degrees.pitch = pt as f32;
                    },
                    ["status"] => {
-                       requests.status = true;
+                       requests = Some(types::Requests::Status);
+                   },
+                   ["boot"] => {
+                       requests = Some(types::Requests::Boot);
+                   },
+                   ["reset"] => {
+                       requests = Some(types::Requests::Reset);
                    }
             );
         }
