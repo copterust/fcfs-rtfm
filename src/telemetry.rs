@@ -17,7 +17,7 @@ impl Telemetry {
             buffer.push('t' as u8);
             buffer.push('m' as u8);
             buffer.push(':' as u8);
-            for f in state.ahrs.short_results().into_iter().chain(state.cmd.into_iter()) {
+            for f in state.ahrs.short_results().iter().chain(state.cmd.iter()) {
                 let mut b = ryu::Buffer::new();
                 let s = b.format(*f);
                 buffer.extend_from_slice(s.as_bytes());
@@ -34,7 +34,7 @@ impl Telemetry {
             buffer.push('c' as u8);
             buffer.push('t' as u8);
             buffer.push(':' as u8);
-            for f in control.coefficients().into_iter() {
+            for f in control.coefficients().iter() {
                 let mut b = ryu::Buffer::new();
                 let s = b.format(*f);
                 buffer.extend_from_slice(s.as_bytes());
