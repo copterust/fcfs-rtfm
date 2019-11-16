@@ -34,7 +34,9 @@ impl Channel {
     }
 
     pub fn send<F>(self, mut buffer_filler: F) -> Self
-    where F: for<'a> FnMut<(&'a mut TxBuffer,), Output = ()> {
+    where
+        F: for<'a> FnMut<(&'a mut TxBuffer,), Output = ()>,
+    {
         let ns = match self.state {
             TransferState::Ready((mut buffer, ch, tx)) => {
                 buffer_filler(&mut buffer);

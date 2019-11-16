@@ -28,14 +28,17 @@ pub struct AHRS<DEV, T> {
 }
 
 impl<DEV, E, T> AHRS<DEV, T>
-    where DEV: mpu9250::Device<Error = E>,
-          T: Chrono
+where
+    DEV: mpu9250::Device<Error = E>,
+    T: Chrono,
 {
-    pub fn create<D>(mut mpu: Mpu9250<DEV, mpu9250::Imu>,
-                     delay: &mut D,
-                     timer_ms: T)
-                     -> Self
-        where D: DelayMs<u8>
+    pub fn create<D>(
+        mut mpu: Mpu9250<DEV, mpu9250::Imu>,
+        delay: &mut D,
+        timer_ms: T,
+    ) -> Self
+    where
+        D: DelayMs<u8>,
     {
         // let mut accel_biases = mpu.calibrate_at_rest(delay)?;
         // Accel biases contain compensation for Earth gravity,
@@ -46,10 +49,12 @@ impl<DEV, E, T> AHRS<DEV, T>
         // TODO: find real Z axis.
         // accel_biases.z -= mpu9250::G;
         let dcmimu = DCMIMU::new();
-        AHRS { mpu,
-               dcmimu,
-               // accel_biases,
-               timer_ms }
+        AHRS {
+            mpu,
+            dcmimu,
+            // accel_biases,
+            timer_ms,
+        }
     }
 
     pub fn setup_time(&mut self) {
@@ -61,14 +66,23 @@ impl<DEV, E, T> AHRS<DEV, T>
         let dt_s = self.timer_ms.split_time_s();
         let accel = meas.accel;
         let gyro = meas.gyro;
-        let (ypr, gyro_biases) =
-            self.dcmimu.update((gyro[0], gyro[1], gyro[2]),
-                               (accel[0], accel[1], accel[2]),
-                               dt_s);
-        let biased_gyro = [gyro[0] - gyro_biases.x,
-                           gyro[1] - gyro_biases.y,
-                           gyro[2] - gyro_biases.z];
-        Ok(AhrsResult { ypr, accel, gyro, biased_gyro, dt_s })
+        let (ypr, gyro_biases) = self.dcmimu.update(
+            (gyro[0], gyro[1], gyro[2]),
+            (accel[0], accel[1], accel[2]),
+            dt_s,
+        );
+        let biased_gyro = [
+            gyro[0] - gyro_biases.x,
+            gyro[1] - gyro_biases.y,
+            gyro[2] - gyro_biases.z,
+        ];
+        Ok(AhrsResult {
+            ypr,
+            accel,
+            gyro,
+            biased_gyro,
+            dt_s,
+        })
     }
 }
 
@@ -91,42 +105,46 @@ impl AhrsResult {
             ypr: EulerAngles {
                 yaw: 0.0,
                 pitch: 0.0,
-                roll: 0.0
+                roll: 0.0,
             },
-            biased_gyro: [0.0, 0.0, 0.0]
+            biased_gyro: [0.0, 0.0, 0.0],
         }
     }
 
     // ax,ay,az,gx,gy,gz,dt_s,y,p,r
     #[inline]
     pub fn short_results(&self) -> [f32; 10] {
-        [self.accel[0],
-         self.accel[1],
-         self.accel[2],
-         self.gyro[0],
-         self.gyro[1],
-         self.gyro[2],
-         self.dt_s,
-         self.ypr.yaw,
-         self.ypr.pitch,
-         self.ypr.roll]
+        [
+            self.accel[0],
+            self.accel[1],
+            self.accel[2],
+            self.gyro[0],
+            self.gyro[1],
+            self.gyro[2],
+            self.dt_s,
+            self.ypr.yaw,
+            self.ypr.pitch,
+            self.ypr.roll,
+        ]
     }
 
     // ax,ay,az,gx,gy,gz,dt_s,y,p,r,bgx,bgy,bgz
     #[inline]
     pub fn long_results(&self) -> [f32; 13] {
-        [self.accel[0],
-         self.accel[1],
-         self.accel[2],
-         self.gyro[0],
-         self.gyro[1],
-         self.gyro[2],
-         self.dt_s,
-         self.ypr.yaw,
-         self.ypr.pitch,
-         self.ypr.roll,
-         self.biased_gyro[0],
-         self.biased_gyro[1],
-         self.biased_gyro[2]]
+        [
+            self.accel[0],
+            self.accel[1],
+            self.accel[2],
+            self.gyro[0],
+            self.gyro[1],
+            self.gyro[2],
+            self.dt_s,
+            self.ypr.yaw,
+            self.ypr.pitch,
+            self.ypr.roll,
+            self.biased_gyro[0],
+            self.biased_gyro[1],
+            self.biased_gyro[2],
+        ]
     }
 }

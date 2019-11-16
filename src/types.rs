@@ -13,7 +13,7 @@ impl State {
         State {
             ahrs: AhrsResult::new(),
             cmd: [0.0, 0.0, 0.0],
-            errors: [0.0, 0.0, 0.0]
+            errors: [0.0, 0.0, 0.0],
         }
     }
 }
@@ -49,22 +49,26 @@ impl Control {
             target_degrees: EulerAngles {
                 yaw: 0.0,
                 pitch: 0.0,
-                roll: 0.0
-            }
+                roll: 0.0,
+            },
         }
     }
 
     #[inline]
     pub fn coefficients(&self) -> [f32; 6] {
-        [self.pk, self.ik, self.dk,
-         self.pitch_pk,
-         self.roll_pk,
-         self.yaw_pk]
+        [
+            self.pk,
+            self.ik,
+            self.dk,
+            self.pitch_pk,
+            self.roll_pk,
+            self.yaw_pk,
+        ]
     }
 }
 
 pub enum Requests {
     Status,
     Reset,
-    Boot
+    Boot,
 }

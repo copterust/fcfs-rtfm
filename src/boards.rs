@@ -1,18 +1,20 @@
 pub use crate::prelude::*;
 
-pub struct BoardConfiguration<DPT,
-                              SPI,
-                              SpiPins,
-                              NPT,
-                              Usart,
-                              UsartPins,
-                              TxCh,
-                              GP,
-                              ExtiNum,
-                              MotorPins,
-                              MotorAux>
-    where ExtiNum: hal::exti::ExternalInterrupt,
-          GP: hal::gpio::GPIOPin
+pub struct BoardConfiguration<
+    DPT,
+    SPI,
+    SpiPins,
+    NPT,
+    Usart,
+    UsartPins,
+    TxCh,
+    GP,
+    ExtiNum,
+    MotorPins,
+    MotorAux,
+> where
+    ExtiNum: hal::exti::ExternalInterrupt,
+    GP: hal::gpio::GPIOPin,
 {
     pub debug_pin: DPT,
     pub spi: SPI,
@@ -23,7 +25,7 @@ pub struct BoardConfiguration<DPT,
     pub tx_ch: TxCh,
     pub extih: hal::exti::BoundInterrupt<GP, ExtiNum>,
     pub motor_pins: MotorPins,
-    pub motor_aux: MotorAux
+    pub motor_aux: MotorAux,
 }
 
 pub struct Peripherals {
@@ -74,33 +76,39 @@ mod defs {
     pub type RxUsart = Rx<USART>;
     pub type TxCh = hal::dma::dma1::C7;
     pub type ExtiNum = hal::exti::EXTI13;
-    pub type MotorPins = (gpio::PA0<PullNone, gpio::Input>,
-                       gpio::PA1<PullNone, gpio::Input>,
-                       gpio::PA2<PullNone, gpio::Input>,
-                       gpio::PA3<PullNone, gpio::Input>,
-                       gpio::PA6<PullNone, gpio::Input>,
-                       gpio::PA7<PullNone, gpio::Input>);
+    pub type MotorPins = (
+        gpio::PA0<PullNone, gpio::Input>,
+        gpio::PA1<PullNone, gpio::Input>,
+        gpio::PA2<PullNone, gpio::Input>,
+        gpio::PA3<PullNone, gpio::Input>,
+        gpio::PA6<PullNone, gpio::Input>,
+        gpio::PA7<PullNone, gpio::Input>,
+    );
     pub type MotorAux = (hal::pac::TIM2, hal::pac::TIM3);
 
-    type Res = BoardConfiguration<DT,
-                                  SpiT,
-                                  SpiInputPins,
-                                  NT,
-                                  USART,
-                                  UsartPins,
-                                  TxCh,
-                                  MpuIntPin,
-                                  ExtiNum,
-                                  MotorPins,
-                                  MotorAux>;
+    type Res = BoardConfiguration<
+        DT,
+        SpiT,
+        SpiInputPins,
+        NT,
+        USART,
+        UsartPins,
+        TxCh,
+        MpuIntPin,
+        ExtiNum,
+        MotorPins,
+        MotorAux,
+    >;
     pub fn configure(mut device: Peripherals) -> Res {
         let scl_sck = device.gpiob.pb3;
         let ad0_sdo_miso = device.gpiob.pb4;
         let sda_sdi_mosi = device.gpiob.pb5;
 
         let mpu_interrupt_pin = device.gpioc.pc13.pull_type(PullUp);
-        let extih =
-            device.exti.EXTI13.bind(mpu_interrupt_pin, &mut device.syscfg);
+        let extih = device
+            .exti
+            .EXTI13
+            .bind(mpu_interrupt_pin, &mut device.syscfg);
 
         let motor_pins = (
             device.gpioa.pa0,
@@ -108,34 +116,34 @@ mod defs {
             device.gpioa.pa2,
             device.gpioa.pa3,
             device.gpioa.pa6,
-            device.gpioa.pa7
+            device.gpioa.pa7,
         );
-        let motor_aux = (
-            device.tim2,
-            device.tim3
-        );
+        let motor_aux = (device.tim2, device.tim3);
 
-        BoardConfiguration { debug_pin: device.gpioc.pc15,
-                             spi: device.spi1,
-                             spi_pins: (scl_sck, ad0_sdo_miso, sda_sdi_mosi),
-                             ncs: device.gpiob.pb9,
-                             usart: device.usart2,
-                             usart_pins: (device.gpioa.pa14,
-                                          device.gpioa.pa15),
-                             tx_ch: device.dma_channels.7,
-                             extih,
-                             motor_pins,
-                             motor_aux}
+        BoardConfiguration {
+            debug_pin: device.gpioc.pc15,
+            spi: device.spi1,
+            spi_pins: (scl_sck, ad0_sdo_miso, sda_sdi_mosi),
+            ncs: device.gpiob.pb9,
+            usart: device.usart2,
+            usart_pins: (device.gpioa.pa14, device.gpioa.pa15),
+            tx_ch: device.dma_channels.7,
+            extih,
+            motor_pins,
+            motor_aux,
+        }
     }
 
-    pub fn setup_motors(motor_pins: MotorPins,
-                        motor_aux: MotorAux,
-                        clocks: hal::rcc::Clocks,
-                        freq: Hertz<u32>) -> Motors {
+    pub fn setup_motors(
+        motor_pins: MotorPins,
+        motor_aux: MotorAux,
+        clocks: hal::rcc::Clocks,
+        freq: Hertz<u32>,
+    ) -> Motors {
         // MOTORS:
         // pa0 -- pa3
-        let ((ch1, ch2, ch3, ch4), mut timer2) = hal::timer::tim2::Timer::new(
-            motor_aux.0, freq, clocks).use_pwm();
+        let ((ch1, ch2, ch3, ch4), mut timer2) =
+            hal::timer::tim2::Timer::new(motor_aux.0, freq, clocks).use_pwm();
         let mut m1_rear_right = pwm!(motor_pins.0, ch1);
         let mut m2_front_right = pwm!(motor_pins.1, ch2);
         let mut m3_rear_left = pwm!(motor_pins.2, ch3);
@@ -153,21 +161,16 @@ mod defs {
                 [ -1., -1., -1., 1.], /* rear left */
                 [-1.,  1.,  1., 1.] /* front left */
             ];
-            let pin = (m1_rear_right,
-                       m2_front_right,
-                       m3_rear_left,
-                       m4_front_left);
-            crate::mixer::Mixer {
-                map,
-                pin,
-                max_duty,
-            }
+            let pin =
+                (m1_rear_right, m2_front_right, m3_rear_left, m4_front_left);
+            crate::mixer::Mixer { map, pin, max_duty }
         }
 
         #[cfg(motors = "motors_hex")]
         {
-            let ((ch5, ch6, _, _), mut timer3) = hal::timer::tim3::Timer::new(
-                motor_aux.1, freq, clocks).use_pwm();
+            let ((ch5, ch6, _, _), mut timer3) =
+                hal::timer::tim3::Timer::new(motor_aux.1, freq, clocks)
+                    .use_pwm();
             let mut m5_left = pwm!(motor_pins.4, ch5);
             let mut m6_right = pwm!(motor_pins.5, ch6);
             timer3.enable();
@@ -182,17 +185,15 @@ mod defs {
                 [1.0, -0.0, 1.0, 1.0] /* right */
             ];
 
-            let pin = (m1_rear_right,
-                       m2_front_right,
-                       m3_rear_left,
-                       m4_front_left,
-                       m5_left,
-                       m6_right);
-            crate::mixer::Mixer {
-                map,
-                pin,
-                max_duty,
-            }
+            let pin = (
+                m1_rear_right,
+                m2_front_right,
+                m3_rear_left,
+                m4_front_left,
+                m5_left,
+                m6_right,
+            );
+            crate::mixer::Mixer { map, pin, max_duty }
         }
     }
 }
@@ -219,43 +220,50 @@ mod defs {
     pub type MotorPins = ();
     pub type MotorAux = ();
 
-    type Res = BoardConfiguration<DT,
-                                  SpiT,
-                                  SpiInputPins,
-                                  NT,
-                                  USART,
-                                  UsartPins,
-                                  TxCh,
-                                  MpuIntPin,
-                                  ExtiNum,
-                                  MotorPins,
-                                  MotorAux>;
+    type Res = BoardConfiguration<
+        DT,
+        SpiT,
+        SpiInputPins,
+        NT,
+        USART,
+        UsartPins,
+        TxCh,
+        MpuIntPin,
+        ExtiNum,
+        MotorPins,
+        MotorAux,
+    >;
     pub fn configure(mut device: Peripherals) -> Res {
         let scl_sck = device.gpiob.pb3;
         let ad0_sdo_miso = device.gpiob.pb4;
         let sda_sdi_mosi = device.gpiob.pb5;
 
         let mpu_interrupt_pin = device.gpioa.pa0.pull_type(PullUp);
-        let mut extih =
-            device.exti.EXTI0.bind(mpu_interrupt_pin, &mut device.syscfg);
+        let mut extih = device
+            .exti
+            .EXTI0
+            .bind(mpu_interrupt_pin, &mut device.syscfg);
 
-        BoardConfiguration { debug_pin: device.gpioa.pa11,
-                             spi: device.spi1,
-                             spi_pins: (scl_sck, ad0_sdo_miso, sda_sdi_mosi),
-                             ncs: device.gpiob.pb0,
-                             usart: device.usart2,
-                             usart_pins: (device.gpioa.pa2,
-                                          device.gpioa.pa15),
-                             tx_ch: device.dma_channels.7,
-                             extih,
-                             motor_pins: (),
-                             motor_aux: ()}
+        BoardConfiguration {
+            debug_pin: device.gpioa.pa11,
+            spi: device.spi1,
+            spi_pins: (scl_sck, ad0_sdo_miso, sda_sdi_mosi),
+            ncs: device.gpiob.pb0,
+            usart: device.usart2,
+            usart_pins: (device.gpioa.pa2, device.gpioa.pa15),
+            tx_ch: device.dma_channels.7,
+            extih,
+            motor_pins: (),
+            motor_aux: (),
+        }
     }
 
-    pub fn setup_motors(motor_pins: MotorPins,
-                        motor_aux: MotorAux,
-                        clocks: hal::rcc::Clocks,
-                        freq: Hertz<u32>) -> Motors {
+    pub fn setup_motors(
+        motor_pins: MotorPins,
+        motor_aux: MotorAux,
+        clocks: hal::rcc::Clocks,
+        freq: Hertz<u32>,
+    ) -> Motors {
         // no motors in Dev
         ()
     }
@@ -268,9 +276,11 @@ pub type MISOPin<B> = gpio::PB4<PullNone, B>;
 pub type MOSIPin<B> = gpio::PB5<PullNone, B>;
 pub type SpiInputPins = (SCLPin<Input>, MISOPin<Input>, MOSIPin<Input>);
 
-pub type SpiPins = (SCLPin<AltFn<AF5, PushPull, HighSpeed>>,
-                    MISOPin<AltFn<AF5, PushPull, HighSpeed>>,
-                    MOSIPin<AltFn<AF5, PushPull, HighSpeed>>);
+pub type SpiPins = (
+    SCLPin<AltFn<AF5, PushPull, HighSpeed>>,
+    MISOPin<AltFn<AF5, PushPull, HighSpeed>>,
+    MOSIPin<AltFn<AF5, PushPull, HighSpeed>>,
+);
 
 pub type SPI = Spi<SpiT, SpiPins>;
 pub type NcsPinT = NcsPinDef<Output<PushPull, HighSpeed>>;
@@ -296,25 +306,27 @@ pub mod mydevice {
             let mut exti = device.EXTI.constrain();
             let dma_channels = device.DMA1.split(&mut rcc.ahb);
             let mut flash = device.FLASH.constrain();
-            let clocks = rcc.cfgr
+            let clocks = rcc
+                .cfgr
                 .sysclk(64.mhz())
                 .pclk1(32.mhz())
                 .pclk2(32.mhz())
                 .freeze(&mut flash.acr);
 
-            Peripherals { spi1: device.SPI1,
-                          spi2: device.SPI2,
-                          usart1: device.USART1,
-                          usart2: device.USART2,
-                          dma_channels,
-                          exti,
-                          gpioa,
-                          gpiob,
-                          gpioc,
-                          syscfg,
-                          clocks,
-                          tim2: device.TIM2,
-                          tim3: device.TIM3
+            Peripherals {
+                spi1: device.SPI1,
+                spi2: device.SPI2,
+                usart1: device.USART1,
+                usart2: device.USART2,
+                dma_channels,
+                exti,
+                gpioa,
+                gpiob,
+                gpioc,
+                syscfg,
+                clocks,
+                tim2: device.TIM2,
+                tim3: device.TIM3,
             }
         }
     }

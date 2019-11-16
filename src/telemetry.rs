@@ -1,11 +1,10 @@
 use crate::communication::{Channel, TxBuffer};
 use crate::types;
 
-
 pub struct Telemetry;
 
 pub const fn create() -> Telemetry {
-    return Telemetry
+    return Telemetry;
 }
 
 // XXX: ufmt
@@ -28,7 +27,11 @@ impl Telemetry {
     }
 
     #[inline]
-    pub fn control(&self, control: &types::Control, channel: Channel) -> Channel {
+    pub fn control(
+        &self,
+        control: &types::Control,
+        channel: Channel,
+    ) -> Channel {
         channel.send(|buffer| {
             // ct:pk,ik,dk,pitch_pk,roll_pk,yaw_pk;
             buffer.push('c' as u8);

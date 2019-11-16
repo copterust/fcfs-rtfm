@@ -1,7 +1,8 @@
 use crate::types;
 
 fn parse<T, E>(bytes: &[u8]) -> Result<T, E>
-    where T: core::str::FromStr<Err = E>
+where
+    T: core::str::FromStr<Err = E>,
 {
     let v = unsafe { core::str::from_utf8_unchecked(bytes) };
     T::from_str(v)
@@ -36,7 +37,6 @@ macro_rules! parse {
     };
 }
 
-
 const BUFFER_SIZE: usize = 512;
 const CR: u8 = '\r' as u8;
 const LF: u8 = '\n' as u8;
@@ -53,7 +53,10 @@ pub const fn create() -> Cmd {
 impl Cmd {
     #[inline]
     pub const fn new() -> Cmd {
-        Cmd { buffer: [0; BUFFER_SIZE], pos: 0 }
+        Cmd {
+            buffer: [0; BUFFER_SIZE],
+            pos: 0,
+        }
     }
 
     #[inline]
@@ -74,7 +77,11 @@ impl Cmd {
     }
 
     #[inline]
-    pub fn feed(&mut self, byte: u8, control: &mut types::Control) -> Option<types::Requests> {
+    pub fn feed(
+        &mut self,
+        byte: u8,
+        control: &mut types::Control,
+    ) -> Option<types::Requests> {
         let mut requests = None;
         if let Some(word) = self.push(byte) {
             // XXX: maybe return new control, instead of mutating?

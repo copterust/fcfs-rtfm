@@ -36,7 +36,10 @@ impl RtfmClock {
     pub fn new(cc: CyclesToTime) -> Self {
         // let dwt =  unsafe { &(*cortex_m::peripheral::DWT::ptr()) };
         // let now:u32 = dwt.cyccnt.read();
-        RtfmClock { cc, last: Instant::now() }
+        RtfmClock {
+            cc,
+            last: Instant::now(),
+        }
     }
 }
 
@@ -64,7 +67,10 @@ pub struct DwtClock {
 impl DwtClock {
     pub fn new(cc: CyclesToTime) -> Self {
         let dwt = unsafe { &(*cortex_m::peripheral::DWT::ptr()) };
-        DwtClock { cc, last: dwt.cyccnt.read() }
+        DwtClock {
+            cc,
+            last: dwt.cyccnt.read(),
+        }
     }
 }
 

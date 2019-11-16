@@ -1,7 +1,6 @@
 use crate::boards::*;
 use hal::timer;
 
-
 pub trait MotorCtrl {
     fn set_duty(&mut self, x: f32, y: f32, z: f32, thrust: f32);
 }
@@ -49,7 +48,6 @@ macro_rules! impl_motor_ctrl {
 
 impl_motor_ctrl!(Map4, 4, A 0 B 1 C 2 D 3);
 impl_motor_ctrl!(Map6, 6, A 0 B 1 C 2 D 3 E 4 F 5);
-
 
 #[inline]
 fn clamp<T: PartialOrd>(val: T, min: T, max: T) -> T {

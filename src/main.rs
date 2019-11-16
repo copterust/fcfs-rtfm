@@ -16,8 +16,8 @@ mod ahrs;
 mod boards;
 mod bootloader;
 mod chrono;
-mod communication;
 mod cmd;
+mod communication;
 mod controllers;
 #[macro_use]
 mod logging;
@@ -41,10 +41,10 @@ use nb::block;
 use rtfm::app;
 
 use boards::*;
-use prelude::*;
-use telemetry::Telemetry;
 use bootloader::Bootloader;
 use mixer::MotorCtrl;
+use prelude::*;
+use telemetry::Telemetry;
 
 #[app(device = crate::boards::mydevice, peripherals = true)]
 const APP: () = {
@@ -82,11 +82,12 @@ const APP: () = {
 
         let mut conf = boards::configure(device);
 
-        let debug_pin = conf.debug_pin
-                            .output()
-                            .output_speed(HighSpeed)
-                            .push_pull()
-                            .pull_type(PullNone);
+        let debug_pin = conf
+            .debug_pin
+            .output()
+            .output_speed(HighSpeed)
+            .push_pull()
+            .pull_type(PullNone);
 
         let mut usart = conf.usart.serial(conf.usart_pins, Bps(460800), clocks);
         usart.listen(hal::serial::Event::Rxne);
@@ -110,14 +111,21 @@ const APP: () = {
                 .sample_rate_divisor(3),
             |spi, ncs| {
                 let (dev_spi, (scl, miso, mosi)) = spi.free();
-                let new_spi = dev_spi.spi((scl, miso, mosi), mpu9250::MODE, 20.mhz(), clocks);
+                let new_spi = dev_spi.spi(
+                    (scl, miso, mosi),
+                    mpu9250::MODE,
+                    20.mhz(),
+                    clocks,
+                );
                 Some((new_spi, ncs))
             },
-        ).unwrap();
+        )
+        .unwrap();
         info!(log, "mpu ok");
 
-        mpu9250.enable_interrupts(
-            mpu9250::InterruptEnable::RAW_RDY_EN).unwrap();
+        mpu9250
+            .enable_interrupts(mpu9250::InterruptEnable::RAW_RDY_EN)
+            .unwrap();
         info!(log, "int enabled; ");
 
         info!(log, "now: {:?}", mpu9250.get_enabled_interrupts());
@@ -125,37 +133,44 @@ const APP: () = {
         let mut ahrs = ahrs::AHRS::create(mpu9250, &mut delay, chrono);
         info!(log, "ahrs ok");
         // motors
-        let motors = boards::setup_motors(conf.motor_pins,
-                                          conf.motor_aux,
-                                          clocks,
-                                          Hertz(32_000u32));
+        let motors = boards::setup_motors(
+            conf.motor_pins,
+            conf.motor_aux,
+            clocks,
+            Hertz(32_000u32),
+        );
 
         info!(log, "ready");
         ahrs.setup_time();
 
         let (producer, consumer) = spsc::pipe();
         let channel = communication::channel(conf.tx_ch, tx);
-        let new_channel = channel.send(|b| utils::fill_with_str(b, "channel ok\r\n"));
+        let new_channel =
+            channel.send(|b| utils::fill_with_str(b, "channel ok\r\n"));
         info!(log, "done init");
-        init::LateResources { extih: conf.extih,
-                              ahrs,
-                              channel: Some(new_channel),
-                              log,
-                              debug_pin,
-                              rx,
-                              producer,
-                              consumer,
-                              motors }
+        init::LateResources {
+            extih: conf.extih,
+            ahrs,
+            channel: Some(new_channel),
+            log,
+            debug_pin,
+            rx,
+            producer,
+            consumer,
+            motors,
+        }
     }
 
     #[idle(resources=[consumer, control, channel, bootloader])]
     fn idle(mut ctx: idle::Context) -> ! {
         static mut CMD: cmd::Cmd = cmd::create();
         static TELE: telemetry::Telemetry = telemetry::create();
-        let idle::Resources {mut consumer,
-                             mut channel,
-                             mut control,
-                             mut bootloader } = ctx.resources;
+        let idle::Resources {
+            mut consumer,
+            mut channel,
+            mut control,
+            mut bootloader,
+        } = ctx.resources;
         loop {
             if let Some(byte) = consumer.dequeue() {
                 let (requests, current_control) = control.lock(|c| {
@@ -167,18 +182,18 @@ const APP: () = {
                         channel.lock(|shared_channel| {
                             let maybe_channel = shared_channel.take();
                             if let Some(channel) = maybe_channel {
-                                let new_channel = TELE.control(&current_control,
-                                                               channel);
+                                let new_channel =
+                                    TELE.control(&current_control, channel);
                                 *shared_channel = Some(new_channel);
                             }
                         });
-                    },
+                    }
                     Some(types::Requests::Boot) => {
                         bootloader.to_bootloader();
-                    },
+                    }
                     Some(types::Requests::Reset) => {
                         bootloader.system_reset();
-                    },
+                    }
                     _ => {}
                 }
             }
@@ -187,14 +202,18 @@ const APP: () = {
 
     #[task(binds=USART2_EXTI26, resources = [rx, producer, log])]
     fn handle_rx(ctx: handle_rx::Context) {
-        let handle_rx::Resources {rx, mut log, producer} = ctx.resources;
+        let handle_rx::Resources {
+            rx,
+            mut log,
+            producer,
+        } = ctx.resources;
 
         match rx.read() {
             Ok(b) => {
                 if let Err(e) = producer.enqueue(b) {
                     error!(log, "no space");
                 }
-            },
+            }
             Err(e) => error!(log, "err read"),
         }
     }
@@ -251,15 +270,17 @@ fn handle_mpu(mut ctx: CtxType) {
                 }
             }
 
-            debugfloats!(log,
-                         ":",
-                         result.ypr.yaw,
-                         result.ypr.pitch,
-                         result.ypr.roll);
-        },
+            debugfloats!(
+                log,
+                ":",
+                result.ypr.yaw,
+                result.ypr.pitch,
+                result.ypr.roll
+            );
+        }
         Err(_e) => {
             error!(log, "err");
-        },
+        }
     };
 
     debug_pin.set_low();

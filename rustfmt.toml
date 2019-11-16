@@ -1,14 +1,4 @@
 edition = "2018"
-use_small_heuristics = "Max"
-reorder_modules = true
-reorder_imports = true
-indent_style = "Visual"
-wrap_comments = true
 comment_width = 80
 max_width = 80
-imports_layout = "Horizontal"
-match_block_trailing_comma = true
-reorder_impl_items = true
-use_field_init_shorthand = true
-use_try_shorthand = true
 tab_spaces = 4
