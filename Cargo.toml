@@ -15,7 +15,6 @@ test = false
 [dependencies]
 cortex-m = {version = "0.6.1", features = ["inline-asm", "const-fn"]}
 cortex-m-rt = "0.6.10"
-panic-abort = "0.3.2"
 ryu = "1.0.2"
 nb = "0.1.2"
 asm-delay = "0.7.0"
@@ -57,7 +56,6 @@ lto = true
 incremental = false
 
 [profile.dev]
-panic = "abort"
 opt-level = 0
 codegen-units = 1
 debug = true

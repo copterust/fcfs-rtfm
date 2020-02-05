@@ -10,17 +10,16 @@
 #![feature(type_alias_impl_trait)]
 #![feature(maybe_uninit_extra)]
 
-use panic_abort;
-
 mod ahrs;
+#[macro_use]
+mod logging;
+mod blackbox;
 mod boards;
 mod bootloader;
 mod chrono;
 mod cmd;
 mod communication;
 mod controllers;
-#[macro_use]
-mod logging;
 mod mixer;
 mod prelude;
 mod spsc;
@@ -52,7 +51,7 @@ const APP: () = {
         // ext should be configured in boards
         extih: hal::exti::BoundInterrupt<MpuIntPin, ExtiNum>,
         ahrs: ahrs::AHRS<Dev, chrono::T>,
-        log: logging::T,
+        log: &'static mut logging::T,
         debug_pin: DebugPinT,
         // Option is needed to be able to change it in-flight (Option::take)
         channel: Option<communication::Channel>,
@@ -72,7 +71,8 @@ const APP: () = {
     fn init(ctx: init::Context) -> init::LateResources {
         let device = ctx.device;
         let clocks = device.clocks;
-        let mut log = logging::create(ctx.core.ITM).unwrap();
+        let raw_log = logging::create(ctx.core.ITM).unwrap();
+        let log = blackbox::init(raw_log);
         info!(log, "init!");
 
         info!(log, "clocks done");
