@@ -1,6 +1,6 @@
 use asm_delay::CyclesToTime;
 use hal::time::*;
-use rtfm::cyccnt::Instant;
+use rtic::cyccnt::Instant;
 
 pub type T = impl Chrono;
 

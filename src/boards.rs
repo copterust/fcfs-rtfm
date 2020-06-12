@@ -341,7 +341,7 @@ pub mod mydevice {
         USART2_EXTI26 = hal::pac::Interrupt::USART2_EXTI26 as u8,
     }
 
-    unsafe impl rtfm::export::interrupt::Nr for Interrupt {
+    unsafe impl rtic::export::interrupt::Nr for Interrupt {
         fn nr(&self) -> u8 {
             *self as u8
         }

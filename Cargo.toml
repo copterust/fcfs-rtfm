@@ -13,7 +13,7 @@ name = "fcfs-rtfm"
 test = false
 
 [dependencies]
-cortex-m = {version = "0.6.2", features = ["inline-asm", "const-fn"]}
+cortex-m = {version = "0.6.2", features = ["inline-asm"]}
 cortex-m-rt = "0.6.10"
 ryu = "1.0.2"
 nb = "0.1.2"
@@ -26,8 +26,10 @@ heapless = {version = "0.5.1"}
 version = "0.6.1"
 features = ["itm", "semihosting"]
 
-[dependencies.cortex-m-rtfm]
-version = "0.5.0"
+[dependencies.cortex-m-rtic]
+version = "0.5.3"
+git = "https://github.com/rtic-rs/cortex-m-rtic"
+rev = "cfd5f4785e9c2ae88e666d1fb94a3488904a87f5"
 
 [dependencies.mpu9250]
 version = "0.20"
@@ -45,6 +47,8 @@ version = "0.22"
 package = "alt-stm32f30x-hal"
 features = ["rt", "stm32f303"]
 
+[patch.crates-io]
+cortex-m = { git = "https://github.com/rust-embedded/cortex-m" }
 
 [profile]
 [profile.release]
@@ -61,7 +65,7 @@ codegen-units = 1
 debug = true
 lto = true
 incremental = false
-[profile.dev.overrides."*"]
+[profile.dev.package."*"]
 opt-level = "z"
 
 [build-dependencies]

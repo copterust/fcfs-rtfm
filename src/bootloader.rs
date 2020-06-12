@@ -50,7 +50,7 @@ pub mod stm32f30x {
             if bkp0r.read().bits() == BOOTLOADER_REQUEST {
                 cortex_m::asm::dsb();
                 unsafe {
-                    asm!("
+                    llvm_asm!("
         cpsie i\n
         movw r0, 0xd800\n
         movt r0, 0x1fff\n

@@ -9,6 +9,7 @@
 #![feature(fn_traits, unboxed_closures)]
 #![feature(type_alias_impl_trait)]
 #![feature(maybe_uninit_extra)]
+#![feature(llvm_asm)]
 
 mod ahrs;
 #[macro_use]
@@ -37,7 +38,7 @@ use asm_delay::{AsmDelay, CyclesToTime};
 use cortex_m_log::printer::Printer;
 use mpu9250::{Mpu9250, MpuConfig};
 use nb::block;
-use rtfm::app;
+use rtic::app;
 
 use boards::*;
 use bootloader::Bootloader;
