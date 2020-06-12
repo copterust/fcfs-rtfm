@@ -27,7 +27,7 @@ dependencies = [
 
 [[package]]
 name = "asm-delay"
-version = "0.7.1"
+version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitrate 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -181,7 +181,7 @@ name = "fcfs-rtfm"
 version = "0.1.0"
 dependencies = [
  "alt-stm32f30x-hal 0.22.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "asm-delay 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "asm-delay 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cfg_feature_groups 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.6.2 (git+https://github.com/rust-embedded/cortex-m)",
  "cortex-m-log 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -396,7 +396,7 @@ dependencies = [
 [metadata]
 "checksum alt-stm32f30x-hal 0.22.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3f164261784419be7c756731d8834066b1f852d416ef418ab7e57f324c7e1d6b"
 "checksum as-slice 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "37dfb65bc03b2bc85ee827004f14a6817e04160e3b1a28931986a666a9290e70"
-"checksum asm-delay 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0bc4896200a8422e15fbb1899cb436889d215954d376bf32d311a2330ac13440"
+"checksum asm-delay 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b8b7c70ec6ea4def14d530d75900bbf8909ed49dafeb1448c3ee7122543964f6"
 "checksum autocfg 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f8aac770f1885fd7e387acedd76065302551364496e46b3dd00860b2f8359b9d"
 "checksum bare-metal 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)" = "5deb64efa5bd81e31fcd1938615a6d98c82eafcbcd787162b6f63b91d6bac5b3"
 "checksum bitfield 0.13.2 (registry+https://github.com/rust-lang/crates.io-index)" = "46afbd2983a5d5a7bd740ccb198caf5b82f45c40c09c0eed36052d91cb92e719"
