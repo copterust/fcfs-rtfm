@@ -38,11 +38,11 @@ version = "0.20"
 
 [dependencies.ehal]
 features = ["unproven"]
-version = "0.2.3"
+version = "=0.2.4"
 package = "embedded-hal"
 
 [dependencies.hal]
-version = "0.22"
+version = "0.24"
 # path = "../alt-stm32f30x-hal"
 package = "alt-stm32f30x-hal"
 features = ["rt", "stm32f303"]
