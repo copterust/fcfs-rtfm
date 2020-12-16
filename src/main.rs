@@ -10,6 +10,7 @@
 #![feature(type_alias_impl_trait)]
 #![feature(maybe_uninit_extra)]
 #![feature(llvm_asm)]
+#![feature(const_impl_trait)]
 
 mod ahrs;
 #[macro_use]
