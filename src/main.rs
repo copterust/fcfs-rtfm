@@ -177,7 +177,7 @@ const APP: () = {
             if let Some(byte) = consumer.dequeue() {
                 let (requests, current_control) = control.lock(|c| {
                     let requests = CMD.feed(byte, c);
-                    (requests, c.clone())
+                    (requests, *c)
                 });
                 match requests {
                     Some(types::Requests::Status) => {

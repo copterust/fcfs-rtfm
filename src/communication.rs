@@ -10,7 +10,7 @@ type TxBusy = dma::Transfer<dma::R, &'static mut TxBuffer, TxCh, TxUsart>;
 static mut BUFFER: TxBuffer = Vec(heapless::i::Vec::new());
 
 pub fn channel(ch: crate::boards::TxCh, tx: crate::boards::TxUsart) -> Channel {
-    return Channel::create(ch, tx);
+    Channel::create(ch, tx)
 }
 
 enum TransferState {

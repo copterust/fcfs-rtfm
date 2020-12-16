@@ -4,7 +4,7 @@ use crate::types;
 pub struct Telemetry;
 
 pub const fn create() -> Telemetry {
-    return Telemetry;
+    Telemetry
 }
 
 // XXX: ufmt
@@ -13,16 +13,16 @@ impl Telemetry {
     pub fn state(&self, state: &types::State, channel: Channel) -> Channel {
         channel.send(|buffer| {
             // tm:ax,ay,az,gx,gy,gz,dt_s,y,p,r,cx,cy,cz
-            buffer.push('t' as u8);
-            buffer.push('m' as u8);
-            buffer.push(':' as u8);
+            buffer.push(b't');
+            buffer.push(b'm');
+            buffer.push(b':');
             for f in state.ahrs.short_results().iter().chain(state.cmd.iter()) {
                 let mut b = ryu::Buffer::new();
                 let s = b.format(*f);
                 buffer.extend_from_slice(s.as_bytes());
-                buffer.push(';' as u8);
+                buffer.push(b';');
             }
-            buffer.push('\n' as u8);
+            buffer.push(b'\n');
         })
     }
 
@@ -34,16 +34,16 @@ impl Telemetry {
     ) -> Channel {
         channel.send(|buffer| {
             // ct:pk,ik,dk,pitch_pk,roll_pk,yaw_pk;
-            buffer.push('c' as u8);
-            buffer.push('t' as u8);
-            buffer.push(':' as u8);
+            buffer.push(b'c');
+            buffer.push(b't');
+            buffer.push(b':');
             for f in control.coefficients().iter() {
                 let mut b = ryu::Buffer::new();
                 let s = b.format(*f);
                 buffer.extend_from_slice(s.as_bytes());
-                buffer.push(';' as u8);
+                buffer.push(b';');
             }
-            buffer.push('\n' as u8);
+            buffer.push(b'\n');
         })
     }
 }

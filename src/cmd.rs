@@ -38,8 +38,8 @@ macro_rules! parse {
 }
 
 const BUFFER_SIZE: usize = 512;
-const CR: u8 = '\r' as u8;
-const LF: u8 = '\n' as u8;
+const CR: u8 = b'\r';
+const LF: u8 = b'\n';
 
 pub struct Cmd {
     buffer: [u8; BUFFER_SIZE],

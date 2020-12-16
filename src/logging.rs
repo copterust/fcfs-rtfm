@@ -4,7 +4,7 @@ use cortex_m_log::printer::dummy::Dummy;
 use cortex_m_log::printer::itm::Itm;
 use cortex_m_log::printer::semihosting::Semihosting;
 use cortex_m_log::printer::Printer;
-use ryu;
+
 
 pub type T = impl Printer;
 

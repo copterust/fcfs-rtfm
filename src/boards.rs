@@ -154,7 +154,7 @@ mod defs {
 
         #[cfg(motors = "motors_quad")]
         {
-            #[cfg_attr(rustfmt, rustfmt_skip)]
+            #[rustfmt::skip]
             let map = [
                 [ 1., -1., -1., 1.], /* rear right */
                 [1.,  1.,  1., 1.], /* front right */
@@ -175,7 +175,7 @@ mod defs {
             let mut m6_right = pwm!(motor_pins.5, ch6);
             timer3.enable();
 
-            #[cfg_attr(rustfmt, rustfmt_skip)]
+            #[rustfmt::skip]
             let map = [
                 [0.567, -0.815, -1.0, 1.0], /* rear right */
                 [0.567, 0.815, -1.0, 1.0], /* front right */
@@ -265,7 +265,7 @@ mod defs {
         freq: Hertz<u32>,
     ) -> Motors {
         // no motors in Dev
-        ()
+        
     }
 }
 

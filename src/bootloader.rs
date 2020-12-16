@@ -12,7 +12,7 @@ pub const fn create() -> T {
 }
 
 pub mod stm32f30x {
-    use core;
+    
     use cortex_m::peripheral::SCB;
     use cortex_m::{self, interrupt, register::msp};
     use hal::pac::{PWR, RCC, RTC};
@@ -36,9 +36,9 @@ pub mod stm32f30x {
             let pwr = unsafe { &*PWR::ptr() };
             let rtc = unsafe { &*RTC::ptr() };
             // enable bkp registers
-            &(*rcc).apb1enr.modify(|r, w| w.pwren().bit(true));
+            (*rcc).apb1enr.modify(|r, w| w.pwren().bit(true));
             // clear data protection
-            &(*pwr).cr.modify(|r, w| w.dbp().bit(true));
+            (*pwr).cr.modify(|r, w| w.dbp().bit(true));
         }
     }
 
@@ -70,7 +70,7 @@ pub mod stm32f30x {
             self.enable_bkp();
             let rtc = unsafe { &*RTC::ptr() };
             // write cookie to backup register and reset
-            &(*rtc).bkpr[0].write(|w| unsafe { w.bits(BOOTLOADER_REQUEST) });
+            (*rtc).bkpr[0].write(|w| unsafe { w.bits(BOOTLOADER_REQUEST) });
             cortex_m::asm::dsb();
             self.system_reset();
         }
