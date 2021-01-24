@@ -1,6 +1,7 @@
 use crate::ahrs::AhrsResult;
 use crate::prelude::*;
 
+#[derive(Copy, Clone)]
 pub struct State {
     pub ahrs: AhrsResult,
     pub cmd: [f32; 3],

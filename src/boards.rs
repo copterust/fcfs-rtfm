@@ -265,7 +265,6 @@ mod defs {
         freq: Hertz<u32>,
     ) -> Motors {
         // no motors in Dev
-        
     }
 }
 
@@ -340,6 +339,7 @@ pub mod mydevice {
 
         USART2_EXTI26 = hal::pac::Interrupt::USART2_EXTI26 as u8,
     }
+    pub use Interrupt as interrupt;
 
     unsafe impl rtic::export::interrupt::Nr for Interrupt {
         fn nr(&self) -> u8 {

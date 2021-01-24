@@ -39,7 +39,11 @@ use asm_delay::{AsmDelay, CyclesToTime};
 use cortex_m_log::printer::Printer;
 use mpu9250::{Mpu9250, MpuConfig};
 use nb::block;
-use rtic::app;
+use rtic::mutex_prelude::TupleExt02;
+use rtic::{app, Mutex};
+// larhat: ^ Mutex and TupleExts are normally imported by rtic codegen,
+// but since we're setting dynamic interrupt handlers outside of app,
+// we have to import those Traits explicitly
 
 use boards::*;
 use bootloader::Bootloader;
@@ -48,7 +52,10 @@ use prelude::*;
 use telemetry::Telemetry;
 
 #[app(device = crate::boards::mydevice, peripherals = true)]
-const APP: () = {
+mod app {
+    use super::*;
+
+    #[resources]
     struct Resources {
         // ext should be configured in boards
         extih: hal::exti::BoundInterrupt<MpuIntPin, ExtiNum>,
@@ -174,7 +181,9 @@ const APP: () = {
             mut bootloader,
         } = ctx.resources;
         loop {
-            if let Some(byte) = consumer.dequeue() {
+            let maybe_byte = consumer.lock(|cs| cs.dequeue());
+
+            if let Some(byte) = maybe_byte {
                 let (requests, current_control) = control.lock(|c| {
                     let requests = CMD.feed(byte, c);
                     (requests, *c)
@@ -191,10 +200,10 @@ const APP: () = {
                         });
                     }
                     Some(types::Requests::Boot) => {
-                        bootloader.to_bootloader();
+                        bootloader.lock(|b| b.to_bootloader());
                     }
                     Some(types::Requests::Reset) => {
-                        bootloader.system_reset();
+                        bootloader.lock(|b| b.system_reset());
                     }
                     _ => {}
                 }
@@ -203,20 +212,21 @@ const APP: () = {
     }
 
     #[task(binds=USART2_EXTI26, resources = [rx, producer, log])]
-    fn handle_rx(ctx: handle_rx::Context) {
+    fn handle_rx(mut ctx: handle_rx::Context) {
         let handle_rx::Resources {
-            rx,
+            mut rx,
             mut log,
-            producer,
+            mut producer,
         } = ctx.resources;
 
-        match rx.read() {
+        let input = rx.lock(|r| r.read());
+        match input {
             Ok(b) => {
-                if let Err(e) = producer.enqueue(b) {
-                    error!(log, "no space");
+                if let Err(e) = producer.lock(|p| p.enqueue(b)) {
+                    log.lock(|l| error!(l, "no space"));
                 }
             }
-            Err(e) => error!(log, "err read"),
+            Err(e) => log.lock(|l| error!(l, "err read")),
         }
     }
 
@@ -232,61 +242,66 @@ const APP: () = {
         #[cfg(configuration = "configuration_dev")]
         handle_mpu(ctx);
     }
-};
+}
 
 #[cfg(configuration = "configuration_drone")]
-type CtxType<'a> = handle_mpu_drone::Context<'a>;
+type CtxType<'a> = app::handle_mpu_drone::Context<'a>;
 #[cfg(configuration = "configuration_drone")]
-type ResourceType<'a> = handle_mpu_drone::Resources<'a>;
+type ResourceType<'a> = app::handle_mpu_drone::Resources<'a>;
 #[cfg(configuration = "configuration_dev")]
-type CtxType<'a> = handle_mpu_dev::Context<'a>;
+type CtxType<'a> = app::handle_mpu_dev::Context<'a>;
 #[cfg(configuration = "configuration_dev")]
-type ResourceType<'a> = handle_mpu_dev::Resources<'a>;
+type ResourceType<'a> = app::handle_mpu_dev::Resources<'a>;
 fn handle_mpu(mut ctx: CtxType) {
     static TELE: telemetry::Telemetry = telemetry::create();
-    let ResourceType {
-        mut debug_pin,
-        mut ahrs,
-        mut state,
-        mut log,
-        mut motors,
-        mut channel,
-        mut extih,
-        control,
-    } = ctx.resources;
+    let mut debug_pin = ctx.resources.debug_pin;
+    let mut ahrs = ctx.resources.ahrs;
+    let mut state = ctx.resources.state.lock(|s| s.clone());
+    let mut log = ctx.resources.log;
+    let mut motors = ctx.resources.motors;
+    let mut channel = ctx.resources.channel;
+    let mut extih = ctx.resources.extih;
+    let control = ctx.resources.control.lock(|c| c.clone());
 
-    match ahrs.estimate() {
+    let estimation = ahrs.lock(|a| a.estimate());
+    match estimation {
         Ok(result) => {
             state.ahrs = result;
             let (cmd, errors) = controllers::body_rate(&state, &control);
             state.errors = errors;
             state.cmd = cmd;
+            ctx.resources.state.lock(|s| {
+                *s = state;
+            });
 
-            motors.set_duty(cmd[0], cmd[1], cmd[2], control.thrust);
+            motors.lock(|m| m.set_duty(cmd[0], cmd[1], cmd[2], control.thrust));
 
             if control.telemetry {
-                let mut maybe_channel = channel.take();
-                if let Some(in_channel) = maybe_channel {
-                    let new_channel = TELE.state(&state, in_channel);
-                    *channel = Some(new_channel);
-                }
+                channel.lock(|maybe_channel| {
+                    if let Some(in_channel) = maybe_channel.take() {
+                        let new_channel = TELE.state(&state, in_channel);
+                        *maybe_channel = Some(new_channel);
+                    }
+                });
             }
 
-            debugfloats!(
-                log,
-                ":",
-                result.ypr.yaw,
-                result.ypr.pitch,
-                result.ypr.roll
-            );
+            log.lock(|l| {
+                debugfloats!(
+                    l,
+                    ":",
+                    result.ypr.yaw,
+                    result.ypr.pitch,
+                    result.ypr.roll
+                )
+            });
         }
         Err(_e) => {
-            error!(log, "err");
+            log.lock(|l| error!(l, "err"));
         }
     };
 
-    debug_pin.set_low();
-    extih.unpend();
+    debug_pin.lock(|dp| dp.set_low());
+    extih.lock(|e| e.unpend());
 }
 
 #[exception]
