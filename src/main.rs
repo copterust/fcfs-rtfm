@@ -64,8 +64,11 @@ mod app {
         debug_pin: DebugPinT,
         // Option is needed to be able to change it in-flight (Option::take)
         channel: Option<communication::Channel>,
+        #[task_local]
         rx: crate::boards::RxUsart,
+        #[task_local]
         producer: crate::spsc::Tx,
+        #[task_local]
         consumer: crate::spsc::Rx,
         motors: crate::boards::Motors,
         #[init(crate::types::Control::new())]
@@ -181,7 +184,7 @@ mod app {
             mut bootloader,
         } = ctx.resources;
         loop {
-            let maybe_byte = consumer.lock(|cs| cs.dequeue());
+            let maybe_byte = consumer.dequeue();
 
             if let Some(byte) = maybe_byte {
                 let (requests, current_control) = control.lock(|c| {
@@ -219,10 +222,10 @@ mod app {
             mut producer,
         } = ctx.resources;
 
-        let input = rx.lock(|r| r.read());
+        let input = rx.read();
         match input {
             Ok(b) => {
-                if let Err(e) = producer.lock(|p| p.enqueue(b)) {
+                if let Err(e) = producer.enqueue(b) {
                     log.lock(|l| error!(l, "no space"));
                 }
             }
