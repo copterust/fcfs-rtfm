@@ -58,9 +58,12 @@ mod app {
     #[resources]
     struct Resources {
         // ext should be configured in boards
+        #[task_local]
         extih: hal::exti::BoundInterrupt<MpuIntPin, ExtiNum>,
+        #[task_local]
         ahrs: ahrs::AHRS<Dev, chrono::T>,
         log: &'static mut logging::T,
+        #[task_local]
         debug_pin: DebugPinT,
         // Option is needed to be able to change it in-flight (Option::take)
         channel: Option<communication::Channel>,
@@ -70,6 +73,7 @@ mod app {
         producer: crate::spsc::Tx,
         #[task_local]
         consumer: crate::spsc::Rx,
+        #[task_local]
         motors: crate::boards::Motors,
         #[init(crate::types::Control::new())]
         control: crate::types::Control,
@@ -248,7 +252,7 @@ mod app {
         let mut extih = ctx.resources.extih;
         let control = ctx.resources.control.lock(|c| c.clone());
 
-        let estimation = ahrs.lock(|a| a.estimate());
+        let estimation = ahrs.estimate();
         match estimation {
             Ok(result) => {
                 state.ahrs = result;
@@ -259,9 +263,7 @@ mod app {
                     *s = state;
                 });
 
-                motors.lock(|m| {
-                    m.set_duty(cmd[0], cmd[1], cmd[2], control.thrust)
-                });
+                motors.set_duty(cmd[0], cmd[1], cmd[2], control.thrust);
 
                 if control.telemetry {
                     channel.lock(|maybe_channel| {
@@ -287,8 +289,8 @@ mod app {
             }
         };
 
-        debug_pin.lock(|dp| dp.set_low());
-        extih.lock(|e| e.unpend());
+        debug_pin.set_low();
+        extih.unpend();
     }
 }
 
