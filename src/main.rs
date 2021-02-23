@@ -233,78 +233,63 @@ mod app {
         }
     }
 
-    #[task(binds=EXTI15_10, resources = [extih, ahrs, log, debug_pin,
-                                         channel, control, state, motors])]
-    fn handle_mpu_drone(ctx: handle_mpu_drone::Context) {
-        #[cfg(configuration = "configuration_drone")]
-        handle_mpu(ctx);
-    }
-    #[task(binds=EXTI0, resources = [extih, ahrs, log, debug_pin,
-                                     channel, control, state, motors])]
-    fn handle_mpu_dev(ctx: handle_mpu_dev::Context) {
-        #[cfg(configuration = "configuration_dev")]
-        handle_mpu(ctx);
-    }
-}
+    #[task(binds=[("configuration_drone", EXTI15_10),
+                  ("configuration_dev", EXTI0)],
+           resources = [extih, ahrs, log, debug_pin,
+                        channel, control, state, motors])]
+    fn handle_mpu(mut ctx: handle_mpu::Context) {
+        static TELE: telemetry::Telemetry = telemetry::create();
+        let mut debug_pin = ctx.resources.debug_pin;
+        let mut ahrs = ctx.resources.ahrs;
+        let mut state = ctx.resources.state.lock(|s| s.clone());
+        let mut log = ctx.resources.log;
+        let mut motors = ctx.resources.motors;
+        let mut channel = ctx.resources.channel;
+        let mut extih = ctx.resources.extih;
+        let control = ctx.resources.control.lock(|c| c.clone());
 
-#[cfg(configuration = "configuration_drone")]
-type CtxType<'a> = app::handle_mpu_drone::Context<'a>;
-#[cfg(configuration = "configuration_drone")]
-type ResourceType<'a> = app::handle_mpu_drone::Resources<'a>;
-#[cfg(configuration = "configuration_dev")]
-type CtxType<'a> = app::handle_mpu_dev::Context<'a>;
-#[cfg(configuration = "configuration_dev")]
-type ResourceType<'a> = app::handle_mpu_dev::Resources<'a>;
-fn handle_mpu(mut ctx: CtxType) {
-    static TELE: telemetry::Telemetry = telemetry::create();
-    let mut debug_pin = ctx.resources.debug_pin;
-    let mut ahrs = ctx.resources.ahrs;
-    let mut state = ctx.resources.state.lock(|s| s.clone());
-    let mut log = ctx.resources.log;
-    let mut motors = ctx.resources.motors;
-    let mut channel = ctx.resources.channel;
-    let mut extih = ctx.resources.extih;
-    let control = ctx.resources.control.lock(|c| c.clone());
+        let estimation = ahrs.lock(|a| a.estimate());
+        match estimation {
+            Ok(result) => {
+                state.ahrs = result;
+                let (cmd, errors) = controllers::body_rate(&state, &control);
+                state.errors = errors;
+                state.cmd = cmd;
+                ctx.resources.state.lock(|s| {
+                    *s = state;
+                });
 
-    let estimation = ahrs.lock(|a| a.estimate());
-    match estimation {
-        Ok(result) => {
-            state.ahrs = result;
-            let (cmd, errors) = controllers::body_rate(&state, &control);
-            state.errors = errors;
-            state.cmd = cmd;
-            ctx.resources.state.lock(|s| {
-                *s = state;
-            });
+                motors.lock(|m| {
+                    m.set_duty(cmd[0], cmd[1], cmd[2], control.thrust)
+                });
 
-            motors.lock(|m| m.set_duty(cmd[0], cmd[1], cmd[2], control.thrust));
+                if control.telemetry {
+                    channel.lock(|maybe_channel| {
+                        if let Some(in_channel) = maybe_channel.take() {
+                            let new_channel = TELE.state(&state, in_channel);
+                            *maybe_channel = Some(new_channel);
+                        }
+                    });
+                }
 
-            if control.telemetry {
-                channel.lock(|maybe_channel| {
-                    if let Some(in_channel) = maybe_channel.take() {
-                        let new_channel = TELE.state(&state, in_channel);
-                        *maybe_channel = Some(new_channel);
-                    }
+                log.lock(|l| {
+                    debugfloats!(
+                        l,
+                        ":",
+                        result.ypr.yaw,
+                        result.ypr.pitch,
+                        result.ypr.roll
+                    )
                 });
             }
+            Err(_e) => {
+                log.lock(|l| error!(l, "err"));
+            }
+        };
 
-            log.lock(|l| {
-                debugfloats!(
-                    l,
-                    ":",
-                    result.ypr.yaw,
-                    result.ypr.pitch,
-                    result.ypr.roll
-                )
-            });
-        }
-        Err(_e) => {
-            log.lock(|l| error!(l, "err"));
-        }
-    };
-
-    debug_pin.lock(|dp| dp.set_low());
-    extih.lock(|e| e.unpend());
+        debug_pin.lock(|dp| dp.set_low());
+        extih.lock(|e| e.unpend());
+    }
 }
 
 #[exception]

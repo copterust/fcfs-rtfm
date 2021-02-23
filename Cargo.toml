@@ -28,8 +28,9 @@ features = ["itm", "semihosting"]
 
 [dependencies.cortex-m-rtic]
 # version = "0.5.5"
-git = "https://github.com/rtic-rs/cortex-m-rtic"
-rev = "6cbf98ff70823b152eb54ce846f73eddbd8bf82c"
+git = "https://github.com/copterust/cortex-m-rtic"
+branch = "feature-configurable-binds"
+path = "../japaric/cortex-m-rtfm"
 
 [dependencies.mpu9250]
 version = "0.24"
