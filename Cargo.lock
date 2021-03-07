@@ -155,21 +155,22 @@ dependencies = [
 
 [[package]]
 name = "cortex-m-rtic"
-version = "0.6.0-alpha.0"
-source = "git+https://github.com/copterust/cortex-m-rtic?branch=feature-configurable-binds#e0ab55d2f770f7cbce9ed6d165f7b4ef995d3c2d"
+version = "0.6.0-alpha.1"
+source = "git+https://github.com/copterust/cortex-m-rtic?branch=feature-configurable-binds#181c6f0e21969483521fd7de6e9b129999da062e"
 dependencies = [
  "bare-metal 1.0.0",
  "cortex-m",
  "cortex-m-rtic-macros",
- "heapless",
+ "heapless 0.6.1",
  "rtic-core",
+ "rtic-monotonic",
  "version_check",
 ]
 
 [[package]]
 name = "cortex-m-rtic-macros"
-version = "0.6.0-alpha.0"
-source = "git+https://github.com/copterust/cortex-m-rtic?branch=feature-configurable-binds#e0ab55d2f770f7cbce9ed6d165f7b4ef995d3c2d"
+version = "0.6.0-alpha.1"
+source = "git+https://github.com/copterust/cortex-m-rtic?branch=feature-configurable-binds#181c6f0e21969483521fd7de6e9b129999da062e"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -207,6 +208,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-time"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f85ab0d224a6c70f11426a9f04d5f26d250605b80df8fbed197e49d4454f58d7"
+dependencies = [
+ "num",
+]
+
+[[package]]
 name = "fcfs-rtfm"
 version = "0.1.0"
 dependencies = [
@@ -219,7 +229,7 @@ dependencies = [
  "cortex-m-rtic",
  "dcmimu",
  "embedded-hal",
- "heapless",
+ "heapless 0.5.6",
  "libm 0.2.1",
  "mpu9250",
  "nb 1.0.0",
@@ -282,10 +292,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "indexmap"
-version = "1.6.1"
+name = "heapless"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fb1fa934250de4de8aef298d81c729a7d33d8c239daa3a7575e6b92bfc7313b"
+checksum = "634bd4d29cbf24424d0a4bfcbf80c6960129dc24424752a7d1d1390607023422"
+dependencies = [
+ "as-slice",
+ "generic-array 0.14.4",
+ "hash32",
+ "stable_deref_trait",
+]
+
+[[package]]
+name = "indexmap"
+version = "1.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "824845a0bf897a9042383849b02c1bc219c2383772efcd5c6f9766fa4b81aef3"
 dependencies = [
  "autocfg",
  "hashbrown",
@@ -328,6 +350,69 @@ name = "nb"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "546c37ac5d9e56f55e73b677106873d9d9f5190605e41a856503623648488cae"
+
+[[package]]
+name = "num"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b7a8e9be5e039e2ff869df49155f1c06bd01ade2117ec783e56ab0932b67a8f"
+dependencies = [
+ "num-complex",
+ "num-integer",
+ "num-iter",
+ "num-rational",
+ "num-traits",
+]
+
+[[package]]
+name = "num-complex"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "747d632c0c558b87dbabbe6a82f3b4ae03720d0646ac5b7b4dae89394be5f2c5"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "num-integer"
+version = "0.1.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2cc698a63b549a70bc047073d2949cce27cd1c7b0a4a862d08a8031bc2801db"
+dependencies = [
+ "autocfg",
+ "num-traits",
+]
+
+[[package]]
+name = "num-iter"
+version = "0.1.42"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2021c8337a54d21aca0d59a92577a029af9431cb59b909b03252b9c164fad59"
+dependencies = [
+ "autocfg",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-rational"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12ac428b1cb17fce6f731001d307d351ec70a6d202fc2e60f7d4c5e42d8f4f07"
+dependencies = [
+ "autocfg",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-traits"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a64b1ec5cda2586e284722486d802acf1f7dbdc623e2bfc57e65ca1cd099290"
+dependencies = [
+ "autocfg",
+]
 
 [[package]]
 name = "proc-macro-error"
@@ -384,9 +469,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8bd58a6949de8ff797a346a28d9f13f7b8f54fa61bb5e3cb0985a4efb497a5ef"
 
 [[package]]
+name = "rtic-monotonic"
+version = "0.1.0-alpha.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec3a03d55a8e67949c6940b0b5a7ebacbf1c2c9abd56d72a6c7653d7109f9b01"
+dependencies = [
+ "embedded-time",
+]
+
+[[package]]
 name = "rtic-syntax"
-version = "0.5.0-alpha.0"
-source = "git+https://github.com/copterust/rtic-syntax?branch=feature-configurable-binds#ea8904bc4b6d7bb5a67988ee67b3c1879cf4776b"
+version = "0.5.0-alpha.1"
+source = "git+https://github.com/copterust/rtic-syntax?branch=feature-configurable-binds#37d6f438f0b9ea394a1b20425bcee9976ee3c92e"
 dependencies = [
  "indexmap",
  "proc-macro2",
@@ -426,9 +520,9 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "serde"
-version = "1.0.123"
+version = "1.0.124"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92d5161132722baa40d802cc70b15262b98258453e85e5d1d365c757c73869ae"
+checksum = "bd761ff957cb2a45fbb9ab3da6512de9de55872866160b23c25f1a841e99d29f"
 
 [[package]]
 name = "stable_deref_trait"
@@ -450,9 +544,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.61"
+version = "1.0.62"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed22b90a0e734a23a7610f4283ac9e5acfb96cbb30dfefa540d66f866f1c09c5"
+checksum = "123a78a3596b24fee53a6464ce52d8ecbf62241e6294c7e7fe12086cd161f512"
 dependencies = [
  "proc-macro2",
  "quote",

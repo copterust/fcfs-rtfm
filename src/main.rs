@@ -39,11 +39,8 @@ use asm_delay::{AsmDelay, CyclesToTime};
 use cortex_m_log::printer::Printer;
 use mpu9250::{Mpu9250, MpuConfig};
 use nb::block;
+use rtic::app;
 use rtic::mutex_prelude::TupleExt02;
-use rtic::{app, Mutex};
-// larhat: ^ Mutex and TupleExts are normally imported by rtic codegen,
-// but since we're setting dynamic interrupt handlers outside of app,
-// we have to import those Traits explicitly
 
 use boards::*;
 use bootloader::Bootloader;
@@ -54,6 +51,10 @@ use telemetry::Telemetry;
 #[app(device = crate::boards::mydevice, peripherals = true)]
 mod app {
     use super::*;
+
+    // larhat: try monotics...
+    // #[monotonic(binds = SysTick, default = true)]
+    // type DwtMono = DwtSystick<U64, U0, U0>;
 
     #[resources]
     struct Resources {
@@ -84,7 +85,7 @@ mod app {
     }
 
     #[init()]
-    fn init(ctx: init::Context) -> init::LateResources {
+    fn init(ctx: init::Context) -> (init::LateResources, init::Monotonics) {
         let device = ctx.device;
         let clocks = device.clocks;
         let raw_log = logging::create(ctx.core.ITM).unwrap();
@@ -95,7 +96,6 @@ mod app {
         // This is weird, but gives accurate delays with release
         let mut delay = AsmDelay::new(clocks.sysclk());
         info!(log, "delay ok");
-
         let mut conf = boards::configure(device);
 
         let debug_pin = conf
@@ -164,17 +164,21 @@ mod app {
         let new_channel =
             channel.send(|b| utils::fill_with_str(b, "channel ok\r\n"));
         info!(log, "done init");
-        init::LateResources {
-            extih: conf.extih,
-            ahrs,
-            channel: Some(new_channel),
-            log,
-            debug_pin,
-            rx,
-            producer,
-            consumer,
-            motors,
-        }
+
+        (
+            init::LateResources {
+                extih: conf.extih,
+                ahrs,
+                channel: Some(new_channel),
+                log,
+                debug_pin,
+                rx,
+                producer,
+                consumer,
+                motors,
+            },
+            init::Monotonics(),
+        )
     }
 
     #[idle(resources=[consumer, control, channel, bootloader])]

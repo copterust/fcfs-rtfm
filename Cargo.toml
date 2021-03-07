@@ -30,7 +30,7 @@ features = ["itm", "semihosting"]
 # version = "0.5.5"
 git = "https://github.com/copterust/cortex-m-rtic"
 branch = "feature-configurable-binds"
-path = "../japaric/cortex-m-rtfm"
+# path = "../japaric/cortex-m-rtfm"
 
 [dependencies.mpu9250]
 version = "0.24"

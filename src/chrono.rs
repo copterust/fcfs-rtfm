@@ -1,6 +1,6 @@
 use asm_delay::CyclesToTime;
 use hal::time::*;
-use rtic::cyccnt::Instant;
+use rtic::time::{Clock, Instant};
 
 pub type T = impl Chrono;
 
@@ -24,38 +24,6 @@ pub trait Chrono: Sized {
     /// Get elapsed time (s) since last measurement and start new cycle
     fn split_time_s(&mut self) -> f32 {
         self.split_time_ms() / 1000.
-    }
-}
-
-pub struct RtfmClock {
-    cc: CyclesToTime,
-    last: Instant,
-}
-
-impl RtfmClock {
-    pub fn new(cc: CyclesToTime) -> Self {
-        // let dwt =  unsafe { &(*cortex_m::peripheral::DWT::ptr()) };
-        // let now:u32 = dwt.cyccnt.read();
-        RtfmClock {
-            cc,
-            last: Instant::now(),
-        }
-    }
-}
-
-impl Chrono for RtfmClock {
-    type Time = Instant;
-
-    fn last(&self) -> Self::Time {
-        self.last
-    }
-
-    fn split_time_ms(&mut self) -> f32 {
-        let now = Instant::now();
-        let duration = now.duration_since(self.last);
-        let duration = now - self.last;
-        self.last = now;
-        self.cc.to_ms(duration.as_cycles())
     }
 }
 
