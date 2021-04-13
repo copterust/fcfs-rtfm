@@ -7,6 +7,8 @@
 #![feature(asm)]
 #![feature(const_fn)]
 #![feature(fn_traits, unboxed_closures)]
+#![allow(incomplete_features)]
+#![feature(min_type_alias_impl_trait)]
 #![feature(type_alias_impl_trait)]
 #![feature(maybe_uninit_extra)]
 #![feature(llvm_asm)]
@@ -51,7 +53,6 @@ use telemetry::Telemetry;
 #[app(device = crate::boards::mydevice, peripherals = true)]
 mod app {
     use super::*;
-
     // larhat: try monotics...
     // #[monotonic(binds = SysTick, default = true)]
     // type DwtMono = DwtSystick<U64, U0, U0>;
