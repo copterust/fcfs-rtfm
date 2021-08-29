@@ -87,7 +87,7 @@ macro_rules! infofloats {
         $prelude:expr,
         $($exprs:expr),* $(,)*
     ) => {
-        info_guard!(writelnfloats!($printer.destination(), $prelude, $($exprs, )+));
+        info_guard!(writelnfloats!($printer.destination(), $prelude, $($exprs, )+))
     }
 }
 
@@ -97,6 +97,6 @@ macro_rules! debugfloats {
         $prelude:expr,
         $($exprs:expr),* $(,)*
     ) => {
-        debug_guard!(writelnfloats!($printer.destination(), $prelude, $($exprs, )+));
+        debug_guard!(writelnfloats!($printer.destination(), $prelude, $($exprs, )+))
     }
 }

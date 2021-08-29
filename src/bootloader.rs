@@ -12,7 +12,7 @@ pub const fn create() -> T {
 }
 
 pub mod stm32f30x {
-    
+
     use cortex_m::peripheral::SCB;
     use cortex_m::{self, interrupt, register::msp};
     use hal::pac::{PWR, RCC, RTC};
@@ -50,12 +50,15 @@ pub mod stm32f30x {
             if bkp0r.read().bits() == BOOTLOADER_REQUEST {
                 cortex_m::asm::dsb();
                 unsafe {
-                    llvm_asm!("
-        cpsie i\n
-        movw r0, 0xd800\n
-        movt r0, 0x1fff\n
-        ldr r0, [r0]\n
-        msr MSP, r0\n" ::: "r0" : "volatile");
+                    asm!(
+                        "cpsie i",
+                        "movw r0, 0xd800",
+                        "movt r0, 0x1fff",
+                        "ldr r0, [r0]",
+                        "msr MSP, r0",
+                        inout("r0") 4 => _, // clobber
+                        options(nostack)
+                    );
                     let f = 0x1FFFD804u32 as *const fn();
                     (*f)();
                 }

@@ -5,10 +5,8 @@
 #![allow(unused)]
 #![feature(core_intrinsics)]
 #![feature(asm)]
-#![feature(const_fn)]
 #![feature(fn_traits, unboxed_closures)]
 #![allow(incomplete_features)]
-#![feature(min_type_alias_impl_trait)]
 #![feature(type_alias_impl_trait)]
 #![feature(maybe_uninit_extra)]
 #![feature(llvm_asm)]
@@ -286,7 +284,7 @@ mod app {
                         result.ypr.yaw,
                         result.ypr.pitch,
                         result.ypr.roll
-                    )
+                    );
                 });
             }
             Err(_e) => {
