@@ -161,7 +161,7 @@ dependencies = [
  "bare-metal 1.0.0",
  "cortex-m",
  "cortex-m-rtic-macros",
- "heapless 0.6.1",
+ "heapless",
  "rtic-core",
  "rtic-monotonic",
  "version_check",
@@ -229,7 +229,7 @@ dependencies = [
  "cortex-m-rtic",
  "dcmimu",
  "embedded-hal",
- "heapless 0.5.6",
+ "heapless",
  "libm 0.2.1",
  "mpu9250",
  "nb 1.0.0",
@@ -278,18 +278,6 @@ name = "hashbrown"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
-
-[[package]]
-name = "heapless"
-version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74911a68a1658cfcfb61bc0ccfbd536e3b6e906f8c2f7883ee50157e3e2184f1"
-dependencies = [
- "as-slice",
- "generic-array 0.13.3",
- "hash32",
- "stable_deref_trait",
-]
 
 [[package]]
 name = "heapless"
