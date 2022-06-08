@@ -20,7 +20,7 @@ nb = "1.0.0"
 asm-delay = "0.7.2"
 dcmimu = "0.2.1"
 libm = "0.2.1"
-heapless = {version = "0.5.1"}
+heapless = {version = "0.6.1"}
 
 [dependencies.cortex-m-log]
 version = "0.7"
