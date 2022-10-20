@@ -4,13 +4,9 @@
 #![allow(non_snake_case)]
 #![allow(unused)]
 #![feature(core_intrinsics)]
-#![feature(asm)]
 #![feature(fn_traits, unboxed_closures)]
 #![allow(incomplete_features)]
 #![feature(type_alias_impl_trait)]
-#![feature(maybe_uninit_extra)]
-#![feature(llvm_asm)]
-#![feature(const_impl_trait)]
 
 mod ahrs;
 #[macro_use]
@@ -51,40 +47,36 @@ use telemetry::Telemetry;
 #[app(device = crate::boards::mydevice, peripherals = true)]
 mod app {
     use super::*;
-    // larhat: try monotics...
+    // larhat: try monotonics...
     // #[monotonic(binds = SysTick, default = true)]
     // type DwtMono = DwtSystick<U64, U0, U0>;
 
-    #[resources]
-    struct Resources {
+    #[local]
+    struct Local {
         // ext should be configured in boards
-        #[task_local]
         extih: hal::exti::BoundInterrupt<MpuIntPin, ExtiNum>,
-        #[task_local]
         ahrs: ahrs::AHRS<Dev, chrono::T>,
-        log: &'static mut logging::T,
-        #[task_local]
+        cmd: cmd::Cmd,
         debug_pin: DebugPinT,
+        rx: crate::boards::RxUsart,
+        producer: crate::spsc::Tx,
+        consumer: crate::spsc::Rx,
+        motors: crate::boards::Motors,
+        state: crate::types::State,
+        bootloader: crate::bootloader::stm32f30x::Bootloader,
+        tele: crate::telemetry::Telemetry,
+    }
+
+    #[shared]
+    struct Shared {
+        log: &'static mut logging::T,
         // Option is needed to be able to change it in-flight (Option::take)
         channel: Option<communication::Channel>,
-        #[task_local]
-        rx: crate::boards::RxUsart,
-        #[task_local]
-        producer: crate::spsc::Tx,
-        #[task_local]
-        consumer: crate::spsc::Rx,
-        #[task_local]
-        motors: crate::boards::Motors,
-        #[init(crate::types::Control::new())]
         control: crate::types::Control,
-        #[init(crate::types::State::new())]
-        state: crate::types::State,
-        #[init(crate::bootloader::create())]
-        bootloader: crate::bootloader::T,
     }
 
     #[init()]
-    fn init(ctx: init::Context) -> (init::LateResources, init::Monotonics) {
+    fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         let device = ctx.device;
         let clocks = device.clocks;
         let raw_log = logging::create(ctx.core.ITM).unwrap();
@@ -162,40 +154,49 @@ mod app {
         let channel = communication::channel(conf.tx_ch, tx);
         let new_channel =
             channel.send(|b| utils::fill_with_str(b, "channel ok\r\n"));
-        info!(log, "done init");
+        let cmd = cmd::Cmd::new();
+        let state = crate::types::State::new();
+        let bootloader = crate::bootloader::stm32f30x::Bootloader::new();
+        let tele = telemetry::create();
 
+        info!(log, "done init");
         (
-            init::LateResources {
+            Shared {
+                log,
+                channel: Some(new_channel),
+                control: crate::types::Control::new(),
+            },
+            Local {
                 extih: conf.extih,
                 ahrs,
-                channel: Some(new_channel),
-                log,
                 debug_pin,
+                cmd,
                 rx,
                 producer,
                 consumer,
                 motors,
+                state,
+                bootloader,
+                tele
             },
             init::Monotonics(),
         )
     }
 
-    #[idle(resources=[consumer, control, channel, bootloader])]
+    #[idle(shared = [channel, control], local = [tele, cmd, consumer, bootloader])]
     fn idle(mut ctx: idle::Context) -> ! {
-        static mut CMD: cmd::Cmd = cmd::create();
-        static TELE: telemetry::Telemetry = telemetry::create();
-        let idle::Resources {
-            mut consumer,
-            mut channel,
-            mut control,
-            mut bootloader,
-        } = ctx.resources;
+        let mut tele = ctx.local.tele;
+        let mut cmd = ctx.local.cmd;
+        let mut consumer = ctx.local.consumer;
+        let mut bootloader = ctx.local.bootloader;
+        let mut channel = ctx.shared.channel;
+        let mut control = ctx.shared.control;
         loop {
             let maybe_byte = consumer.dequeue();
 
             if let Some(byte) = maybe_byte {
                 let (requests, current_control) = control.lock(|c| {
-                    let requests = CMD.feed(byte, c);
+                    let requests = cmd.feed(byte, c);
                     (requests, *c)
                 });
                 match requests {
@@ -204,16 +205,16 @@ mod app {
                             let maybe_channel = shared_channel.take();
                             if let Some(channel) = maybe_channel {
                                 let new_channel =
-                                    TELE.control(&current_control, channel);
+                                    tele.control(&current_control, channel);
                                 *shared_channel = Some(new_channel);
                             }
                         });
                     }
                     Some(types::Requests::Boot) => {
-                        bootloader.lock(|b| b.to_bootloader());
+                        bootloader.to_bootloader();
                     }
                     Some(types::Requests::Reset) => {
-                        bootloader.lock(|b| b.system_reset());
+                        bootloader.system_reset();
                     }
                     _ => {}
                 }
@@ -221,13 +222,11 @@ mod app {
         }
     }
 
-    #[task(binds=USART2_EXTI26, resources = [rx, producer, log])]
+    #[task(binds=USART2_EXTI26, shared = [log], local = [rx, producer])]
     fn handle_rx(mut ctx: handle_rx::Context) {
-        let handle_rx::Resources {
-            mut rx,
-            mut log,
-            mut producer,
-        } = ctx.resources;
+        let mut rx = ctx.local.rx;
+        let mut producer = ctx.local.producer;
+        let mut log = ctx.shared.log;
 
         let input = rx.read();
         match input {
@@ -240,44 +239,41 @@ mod app {
         }
     }
 
-    #[task(binds=[("configuration_drone", EXTI15_10),
-                  ("configuration_dev", EXTI0)],
-           resources = [extih, ahrs, log, debug_pin,
-                        channel, control, state, motors])]
+    // #[task(binds=[("configuration_drone", EXTI15_10),
+    //               ("configuration_dev", EXTI0)],
+    //        local = [extih, ahrs, log, debug_pin,
+    //                 channel, control, state, motors])]
+    #[task(binds=EXTI0,
+           shared = [log, channel, control],
+           local = [extih, ahrs, debug_pin, state, motors])]
     fn handle_mpu(mut ctx: handle_mpu::Context) {
         static TELE: telemetry::Telemetry = telemetry::create();
-        let mut debug_pin = ctx.resources.debug_pin;
-        let mut ahrs = ctx.resources.ahrs;
-        let mut state = ctx.resources.state.lock(|s| s.clone());
-        let mut log = ctx.resources.log;
-        let mut motors = ctx.resources.motors;
-        let mut channel = ctx.resources.channel;
-        let mut extih = ctx.resources.extih;
-        let control = ctx.resources.control.lock(|c| c.clone());
+        // shared
+        let control = ctx.shared.control.lock(|c| c.clone());
 
-        let estimation = ahrs.estimate();
+        let estimation = ctx.local.ahrs.estimate();
         match estimation {
             Ok(result) => {
-                state.ahrs = result;
-                let (cmd, errors) = controllers::body_rate(&state, &control);
-                state.errors = errors;
-                state.cmd = cmd;
-                ctx.resources.state.lock(|s| {
-                    *s = state;
-                });
+                let (cmd, errors) = controllers::body_rate(&ctx.local.state, &control);
+                // update state
+                *ctx.local.state = types::State {
+                    ahrs: result,
+                    cmd,
+                    errors
+                };
 
-                motors.set_duty(cmd[0], cmd[1], cmd[2], control.thrust);
-
+                ctx.local.motors.set_duty(cmd[0], cmd[1], cmd[2], control.thrust);
+                let curren_state = ctx.local.state.clone();
                 if control.telemetry {
-                    channel.lock(|maybe_channel| {
+                    ctx.shared.channel.lock(|maybe_channel| {
                         if let Some(in_channel) = maybe_channel.take() {
-                            let new_channel = TELE.state(&state, in_channel);
+                            let new_channel = TELE.state(&curren_state, in_channel);
                             *maybe_channel = Some(new_channel);
                         }
                     });
                 }
 
-                log.lock(|l| {
+                ctx.shared.log.lock(|l| {
                     debugfloats!(
                         l,
                         ":",
@@ -288,21 +284,21 @@ mod app {
                 });
             }
             Err(_e) => {
-                log.lock(|l| error!(l, "err"));
+                ctx.shared.log.lock(|l| error!(l, "err"));
             }
         };
 
-        debug_pin.set_low();
-        extih.unpend();
+        ctx.local.debug_pin.set_low();
+        ctx.local.extih.unpend();
     }
 }
 
 #[exception]
-fn HardFault(ef: &ExceptionFrame) -> ! {
+unsafe fn HardFault(ef: &ExceptionFrame) -> ! {
     panic!("HardFault at {:#?}", ef);
 }
 
 #[exception]
-fn DefaultHandler(irqn: i16) {
+unsafe fn DefaultHandler(irqn: i16) {
     panic!("Unhandled exception (IRQn = {})", irqn);
 }

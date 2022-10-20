@@ -1,13 +1,12 @@
 use crate::boards::*;
 
-use heapless::consts::*;
 use heapless::Vec;
 
-pub type TxBuffer = Vec<u8, U256>;
+pub type TxBuffer = Vec<u8, 256>;
 type TxReady = (&'static mut TxBuffer, TxCh, TxUsart);
 type TxBusy = dma::Transfer<dma::R, &'static mut TxBuffer, TxCh, TxUsart>;
 
-static mut BUFFER: TxBuffer = Vec(heapless::i::Vec::new());
+static mut BUFFER: TxBuffer = Vec::new();
 
 pub fn channel(ch: crate::boards::TxCh, tx: crate::boards::TxUsart) -> Channel {
     Channel::create(ch, tx)

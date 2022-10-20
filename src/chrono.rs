@@ -1,6 +1,6 @@
 use asm_delay::CyclesToTime;
 use hal::time::*;
-use rtic::time::{Clock, Instant};
+use embedded_time::{Clock, Instant};
 
 pub type T = impl Chrono;
 
@@ -34,10 +34,10 @@ pub struct DwtClock {
 
 impl DwtClock {
     pub fn new(cc: CyclesToTime) -> Self {
-        let dwt = unsafe { &(*cortex_m::peripheral::DWT::ptr()) };
+        let last = cortex_m::peripheral::DWT::cycle_count();
         DwtClock {
             cc,
-            last: dwt.cyccnt.read(),
+            last,
         }
     }
 }
@@ -50,8 +50,7 @@ impl Chrono for DwtClock {
     }
 
     fn split_time_ms(&mut self) -> f32 {
-        let dwt = unsafe { &(*cortex_m::peripheral::DWT::ptr()) };
-        let now: u32 = dwt.cyccnt.read();
+        let now = cortex_m::peripheral::DWT::cycle_count() ;
         let duration = now - self.last;
         self.last = now;
         self.cc.to_ms(duration)

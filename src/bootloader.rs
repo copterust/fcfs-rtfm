@@ -1,17 +1,20 @@
+
+
 pub trait Bootloader {
     fn check_request(&mut self);
     fn to_bootloader(&mut self);
     fn system_reset(&mut self);
 }
 
-pub type T = impl Bootloader;
+// pub type T = impl Bootloader;
 
-#[inline]
-pub const fn create() -> T {
-    stm32f30x::Bootloader::new()
-}
+// #[inline]
+// pub const fn create() -> impl Bootloader {
+//     stm32f30x::Bootloader::new()
+// }
 
 pub mod stm32f30x {
+    use core::arch::asm;
 
     use cortex_m::peripheral::SCB;
     use cortex_m::{self, interrupt, register::msp};
@@ -79,16 +82,7 @@ pub mod stm32f30x {
         }
 
         fn system_reset(&mut self) {
-            let scb = cortex_m::peripheral::SCB::ptr();
-            cortex_m::asm::dsb();
-            unsafe {
-                (*scb).aircr.write(0x05FA0000 | 0x04u32);
-            }
-            cortex_m::asm::dsb();
-            loop {
-                // wait for the reset
-                cortex_m::asm::nop(); // avoid rust-lang/rust#28728
-            }
+            cortex_m::peripheral::SCB::sys_reset();
         }
     }
 }
